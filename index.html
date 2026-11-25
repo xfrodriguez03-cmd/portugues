@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Portugués · Tarjetas</title>
+  <meta name="description" content="Tarjetas para estudiar portugués brasileño con repaso espaciado.">
+  <meta name="theme-color" content="#0e1013">
+  <meta name="color-scheme" content="dark">
+  <!-- Para que el iPhone la abra como app desde la pantalla de inicio -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Portugués">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app">
+
+    <!-- ============ INICIO ============ -->
+    <section id="vista-inicio" class="vista activa" aria-label="Inicio">
+      <header class="encabezado">
+        <div>
+          <p class="saludo">Oi! 👋</p>
+          <h1>Portugués</h1>
+        </div>
+        <span id="viaje" class="chip"></span>
+      </header>
+
+      <div class="panel hoy">
+        <p class="etiqueta">Para hoy</p>
+        <p id="hoy-total" class="numero-grande">0</p>
+        <p id="hoy-detalle" class="detalle"></p>
+      </div>
+
+      <div class="stats">
+        <div class="panel stat">
+          <span class="stat-icono">🔥</span>
+          <p id="racha" class="stat-num">0</p>
+          <p class="stat-txt">días de racha</p>
+        </div>
+        <div class="panel stat">
+          <span class="stat-icono">✅</span>
+          <p id="aprendidas" class="stat-num">0</p>
+          <p id="aprendidas-txt" class="stat-txt">aprendidas</p>
+        </div>
+      </div>
+
+      <div class="panel opciones-estudio">
+        <label class="campo" id="campo-mazo">
+          <span>Mazo</span>
+          <select id="sel-mazo"></select>
+        </label>
+        <div class="campo">
+          <span>Modo</span>
+          <div class="segmentado" role="radiogroup" aria-label="Modo de estudio">
+            <button type="button" data-modo="tarjeta" role="radio">🃏 Tarjeta</button>
+            <button type="button" data-modo="quiz" role="radio">✏️ Quiz</button>
+          </div>
+        </div>
+      </div>
+
+      <button id="btn-empezar" class="btn btn-primario btn-grande" type="button">Empezar</button>
+      <button id="btn-mas-nuevas" class="btn btn-secundario" type="button" hidden>Sumar 5 nuevas más</button>
+      <p id="backup-aviso" class="aviso" hidden></p>
+    </section>
+
+    <!-- ============ ESTUDIO ============ -->
+    <section id="vista-estudio" class="vista" aria-label="Estudio">
+      <div class="estudio-top">
+        <button id="btn-salir" class="btn-icono" type="button" aria-label="Salir">✕</button>
+        <div class="barra"><div id="barra-progreso"></div></div>
+        <span id="contador" class="contador">0/0</span>
+      </div>
+      <p id="direccion" class="direccion"></p>
+
+      <!-- Modo tarjeta -->
+      <div id="zona-tarjeta" class="zona">
+        <div id="tarjeta" class="tarjeta" role="button" tabindex="0" aria-label="Tocá para dar vuelta">
+          <div class="cara frente">
+            <span class="badge" id="badge-frente"></span>
+            <p id="frente-texto" class="palabra"></p>
+            <button class="btn-audio" type="button" data-hablar="frente" aria-label="Escuchar">🔊</button>
+            <p class="pista">Tocá para dar vuelta</p>
+          </div>
+          <div class="cara dorso">
+            <p id="dorso-pregunta" class="pregunta-chica"></p>
+            <p id="dorso-texto" class="palabra"></p>
+            <button class="btn-audio" type="button" data-hablar="dorso" aria-label="Escuchar">🔊</button>
+            <p id="dorso-nota" class="nota"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modo quiz -->
+      <div id="zona-quiz" class="zona" hidden>
+        <div class="tarjeta tarjeta-quiz">
+          <div class="cara">
+            <span class="badge" id="badge-quiz"></span>
+            <p id="quiz-pregunta" class="palabra"></p>
+            <button class="btn-audio" type="button" data-hablar="quiz" aria-label="Escuchar">🔊</button>
+          </div>
+        </div>
+        <div id="quiz-opciones" class="quiz-opciones"></div>
+        <p id="quiz-nota" class="nota nota-quiz"></p>
+      </div>
+
+      <!-- Calificación -->
+      <div id="calificar" class="calificar" hidden>
+        <button class="btn btn-mal" type="button" data-nota="0"><b>No la sabía</b><small data-int="0"></small></button>
+        <button class="btn btn-medio" type="button" data-nota="1"><b>Más o menos</b><small data-int="1"></small></button>
+        <button class="btn btn-bien" type="button" data-nota="2"><b>La sabía</b><small data-int="2"></small></button>
+      </div>
+      <div id="seguir" class="calificar" hidden>
+        <button id="btn-seguir" class="btn btn-mal btn-ancho" type="button"><b>Seguir</b><small>vuelve en un rato</small></button>
+      </div>
+
+      <!-- Fin de sesión -->
+      <div id="fin" class="fin" hidden>
+        <p class="fin-emoji">🎉</p>
+        <h2>¡Terminaste por hoy!</h2>
+        <p id="fin-resumen" class="detalle"></p>
+        <button id="btn-volver" class="btn btn-primario btn-grande" type="button">Volver al inicio</button>
+      </div>
+    </section>
+
+    <!-- ============ TARJETAS ============ -->
+    <section id="vista-tarjetas" class="vista" aria-label="Tarjetas">
+      <header class="encabezado">
+        <h1>Tarjetas</h1>
+        <span id="total-tarjetas" class="chip"></span>
+      </header>
+      <div class="fila-botones">
+        <button id="btn-agregar" class="btn btn-primario" type="button">＋ Agregar</button>
+        <button id="btn-importar-texto" class="btn btn-secundario" type="button">📋 Pegar tanda</button>
+      </div>
+      <input id="buscar" class="buscar" type="search" placeholder="Buscar en portugués o español…" autocomplete="off">
+      <div id="lista"></div>
+    </section>
+
+    <!-- ============ AJUSTES ============ -->
+    <section id="vista-ajustes" class="vista" aria-label="Ajustes">
+      <header class="encabezado"><h1>Ajustes</h1></header>
+
+      <div class="panel">
+        <label class="campo">
+          <span>Tarjetas nuevas por día</span>
+          <input id="aj-nuevas" type="number" min="0" max="200" inputmode="numeric">
+        </label>
+        <label class="campo">
+          <span>Dirección</span>
+          <select id="aj-dir">
+            <option value="ambas">Las dos (🇧🇷 → 🇦🇷 y 🇦🇷 → 🇧🇷)</option>
+            <option value="pt-es">Solo portugués → español</option>
+            <option value="es-pt">Solo español → portugués</option>
+          </select>
+        </label>
+        <label class="campo">
+          <span>Fecha del viaje</span>
+          <input id="aj-viaje" type="date">
+        </label>
+        <label class="campo campo-check">
+          <input id="aj-audio" type="checkbox">
+          <span>Leer en voz alta el portugués al aparecer</span>
+        </label>
+      </div>
+
+      <h2 class="subtitulo">Backup</h2>
+      <div class="panel">
+        <p class="detalle">Tu progreso se guarda solo en este teléfono. Si se borran los datos de Safari, se pierde: bajate un backup cada tanto.</p>
+        <p id="ultimo-backup" class="detalle chico"></p>
+        <div class="fila-botones">
+          <button id="btn-exportar" class="btn btn-primario" type="button">⬇️ Exportar backup</button>
+          <button id="btn-importar" class="btn btn-secundario" type="button">⬆️ Importar backup</button>
+        </div>
+        <input id="archivo-backup" type="file" hidden>
+      </div>
+
+      <h2 class="subtitulo">Zona peligrosa</h2>
+      <div class="panel">
+        <div class="fila-botones">
+          <button id="btn-reiniciar" class="btn btn-peligro" type="button">Reiniciar progreso</button>
+          <button id="btn-restaurar" class="btn btn-secundario" type="button">Recuperar mazo inicial</button>
+        </div>
+        <p class="detalle chico">"Reiniciar" borra el progreso pero deja tus tarjetas. "Recuperar" vuelve a agregar las tarjetas del mazo Falsos amigos que hayas borrado.</p>
+      </div>
+      <p class="version">Hecho para el viaje a Brasil 🇧🇷 · v1</p>
+    </section>
+
+  </main>
+
+  <!-- Barra de pestañas -->
+  <nav id="pestanas" class="pestanas" aria-label="Secciones">
+    <button type="button" data-vista="inicio" class="activa"><span>🏠</span>Inicio</button>
+    <button type="button" data-vista="tarjetas"><span>🗂️</span>Tarjetas</button>
+    <button type="button" data-vista="ajustes"><span>⚙️</span>Ajustes</button>
+  </nav>
+
+  <!-- Ventana: agregar / editar tarjeta -->
+  <dialog id="dlg-tarjeta">
+    <form id="form-tarjeta" method="dialog">
+      <h2 id="dlg-tarjeta-titulo">Nueva tarjeta</h2>
+      <label class="campo"><span>Portugués</span><input name="pt" required autocomplete="off" autocapitalize="none"></label>
+      <label class="campo"><span>Español</span><input name="es" required autocomplete="off" autocapitalize="none"></label>
+      <label class="campo"><span>Nota (opcional)</span><input name="note" autocomplete="off" autocapitalize="none"></label>
+      <label class="campo"><span>Mazo</span><input name="deck" list="lista-mazos" autocomplete="off"></label>
+      <p id="dlg-tarjeta-estado" class="detalle chico"></p>
+      <div class="fila-botones">
+        <button type="button" class="btn btn-secundario" data-cerrar>Cancelar</button>
+        <button type="submit" class="btn btn-primario">Guardar</button>
+      </div>
+      <button id="btn-borrar" type="button" class="btn btn-peligro btn-ancho">Borrar tarjeta</button>
+    </form>
+  </dialog>
+
+  <!-- Ventana: pegar tanda -->
+  <dialog id="dlg-importar">
+    <form id="form-importar" method="dialog">
+      <h2>Pegar tanda</h2>
+      <p class="detalle chico">Una tarjeta por línea: <code>portugués | español | nota</code>. La nota es opcional.</p>
+      <textarea name="texto" rows="8" placeholder="obrigado | gracias | &#10;saudade | nostalgia | no tiene traducción exacta"></textarea>
+      <label class="campo"><span>Mazo</span><input name="deck" list="lista-mazos" autocomplete="off"></label>
+      <p id="importar-vista" class="detalle chico"></p>
+      <div class="fila-botones">
+        <button type="button" class="btn btn-secundario" data-cerrar>Cancelar</button>
+        <button type="submit" class="btn btn-primario">Importar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <datalist id="lista-mazos"></datalist>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="srs.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
