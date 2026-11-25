@@ -7,7 +7,9 @@
  * la versión nueva aparece la SEGUNDA vez que abrís la app.
  * Si cambiás la lista de ARCHIVOS, subí el número de VERSION.
  */
-const VERSION = 'v1';
+importScripts('audio/indice.js'); // trae self.AUDIOS: la lista de audios grabados
+
+const VERSION = 'v2';
 const CACHE = 'tarjetas-portugues-' + VERSION;
 const ARCHIVOS = [
   './',
@@ -15,14 +17,20 @@ const ARCHIVOS = [
   './styles.css',
   './srs.js',
   './app.js',
+  './audio/indice.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
-];
+].concat((self.AUDIOS || []).map(n => './audio/' + n + '.mp3'));
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS)).then(() => self.skipWaiting()));
+  // cache: 'reload' = bajarlos de nuevo de verdad, no de una copia vieja del navegador
+  event.waitUntil(
+    caches.open(CACHE)
+      .then(c => c.addAll(ARCHIVOS.map(u => new Request(u, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', event => {

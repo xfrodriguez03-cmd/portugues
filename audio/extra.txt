@@ -1,0 +1,3 @@
+# Palabras o frases extra con audio (una por línea, o "portugués | español | nota").
+# Después de agregar, correr generar_audios.py.
+Olá! Tudo bem?

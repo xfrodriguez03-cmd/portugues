@@ -121,8 +121,17 @@ legal | bueno, copado |`;
   }
 
   // ================= Voz (pronunciación) =================
+  // 1) Si la palabra tiene audio grabado (carpeta audio/), suena ese archivo:
+  //    anda igual en la PC y en el iPhone, en modo silencio y sin internet.
+  // 2) Si no tiene (por ejemplo, una tarjeta que agregaste vos), usa la voz
+  //    en portugués del dispositivo. Si no hay, avisa qué hacer.
+  const AUDIOS = new Set(self.AUDIOS || []);
+  const reproductor = new Audio();
   const hayVoz = 'speechSynthesis' in window;
+  const esIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   let vozPt = null;
+  let ultimaFrase = null; // se guarda para que el navegador no la descarte a mitad de camino
+
   function buscarVoz() {
     const voces = speechSynthesis.getVoices();
     vozPt = voces.find(v => v.lang === 'pt-BR') || voces.find(v => /^pt[-_]br/i.test(v.lang)) || voces.find(v => /^pt/i.test(v.lang)) || null;
@@ -130,17 +139,55 @@ legal | bueno, copado |`;
   if (hayVoz) {
     buscarVoz();
     speechSynthesis.addEventListener && speechSynthesis.addEventListener('voiceschanged', buscarVoz);
-  } else {
-    document.body.classList.add('sin-voz');
   }
+  // iPhone con iOS 17 o más: que el audio suene aunque esté en modo silencio
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* no pasa nada */ }
+
+  // Igual que nombre_archivo() en generar_audios.py
+  const nombreAudio = t => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
   function hablar(texto) {
-    if (!hayVoz || !texto) return;
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(texto.replace(/\//g, ','));
+    if (!texto) return;
+    const nombre = nombreAudio(texto);
+    if (!AUDIOS.has(nombre)) return hablarConVoz(texto);
+    if (hayVoz && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel();
+    reproductor.pause();
+    reproductor.src = 'audio/' + nombre + '.mp3';
+    const p = reproductor.play();
+    if (p && p.catch) p.catch(() => hablarConVoz(texto));
+  }
+
+  function hablarConVoz(texto) {
+    if (!hayVoz) return aviso('Esta palabra no tiene audio grabado y este navegador no puede leer en voz alta.');
+    if (!vozPt) buscarVoz();
+    if (!vozPt && speechSynthesis.getVoices().length) {
+      return aviso(esIOS
+        ? 'Falta la voz en portugués: Ajustes › Accesibilidad › Contenido leído › Voces › Portugués (Brasil).'
+        : 'Esta palabra no tiene audio grabado y la compu no tiene voz en portugués.');
+    }
+    reproductor.pause();
+    const u = new SpeechSynthesisUtterance(texto.replace(/\s*\/\s*/g, ', '));
     u.lang = 'pt-BR';
     if (vozPt) u.voice = vozPt;
     u.rate = 0.9;
-    speechSynthesis.speak(u);
+    let arranco = false;
+    u.onstart = () => { arranco = true; };
+    u.onerror = e => {
+      if (e.error !== 'interrupted' && e.error !== 'canceled') aviso('No pude leer la palabra en voz alta.');
+    };
+    ultimaFrase = u;
+    // Safari a veces descarta lo que se pide justo después de cancelar: si estaba hablando, espero un poquito.
+    const hablando = speechSynthesis.speaking || speechSynthesis.pending;
+    speechSynthesis.resume(); // Chrome a veces queda "en pausa" y no dice nada
+    if (hablando) {
+      speechSynthesis.cancel();
+      setTimeout(() => speechSynthesis.speak(u), 120);
+    } else {
+      speechSynthesis.speak(u);
+    }
+    setTimeout(() => {
+      if (!arranco && ultimaFrase === u) aviso(esIOS ? '¿No se escucha? Sacá el iPhone del modo silencio y subí el volumen.' : 'No pude leer la palabra en voz alta.');
+    }, 2500);
   }
 
   // ================= Navegación =================
@@ -248,6 +295,7 @@ legal | bueno, copado |`;
 
   function salirDelEstudio() {
     if (hayVoz) speechSynthesis.cancel();
+    reproductor.pause();
     sesion = null;
     mostrarVista('inicio');
   }
@@ -575,7 +623,6 @@ legal | bueno, copado |`;
     $('#aj-dir').value = aj().dirs;
     $('#aj-viaje').value = aj().viaje || '';
     $('#aj-audio').checked = !!aj().audio;
-    $('#aj-audio').closest('label').hidden = !hayVoz;
     const u = aj().lastBackup;
     $('#ultimo-backup').textContent = u ? `Último backup: ${u.split('-').reverse().join('/')}` : 'Todavía no hiciste ningún backup.';
   }
@@ -587,6 +634,7 @@ legal | bueno, copado |`;
   $('#aj-dir').addEventListener('change', e => { aj().dirs = e.target.value; guardar(); aviso('Dirección guardada'); });
   $('#aj-viaje').addEventListener('change', e => { aj().viaje = e.target.value; guardar(); aviso('Fecha guardada'); });
   $('#aj-audio').addEventListener('change', e => { aj().audio = e.target.checked; guardar(); if (e.target.checked) hablar('Olá! Tudo bem?'); });
+  $('#btn-probar-audio').addEventListener('click', () => hablar('Olá! Tudo bem?'));
 
   // ----- Backup -----
   async function exportar() {

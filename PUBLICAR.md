@@ -61,3 +61,5 @@ Tus tarjetas y tu progreso **no se pierden** al actualizar: viven en el teléfon
 - Con Claude Code: pedile "abrí la app de portugués" (usa el servidor `portugues-tarjetas` de `.claude/launch.json`).
 - Las pruebas del repaso espaciado: en esta carpeta, `node pruebas.js`.
 - Si cambiás el dibujo del ícono: `python generar_iconos.py`.
+- Audios de pronunciación (voz brasileña de Kokoro, local y gratis): agregá palabras en `audio/extra.txt` y corré
+  `..\piloto-canal\tools\venv\Scripts\python.exe -X utf8 generar_audios.py`. Las palabras sin audio grabado usan la voz del teléfono.
