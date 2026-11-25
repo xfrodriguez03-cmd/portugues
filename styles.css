@@ -135,7 +135,10 @@ input[type=date] { min-height: 48px; }
   cursor: pointer; outline: none;
 }
 .tarjeta.girada { transform: rotateY(180deg); }
-.tarjeta.sin-animacion { transition: none; } /* al pasar a la siguiente no se ve la respuesta girando */
+.tarjeta.sin-animacion { transition: none; }
+/* La cara que no se ve no recibe toques (Safari se los daba igual) */
+.tarjeta:not(.girada) .dorso, .tarjeta.girada .frente { pointer-events: none; }
+.tarjeta-quiz { transform-style: flat; -webkit-transform-style: flat; } /* al pasar a la siguiente no se ve la respuesta girando */
 .cara {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 10px; padding: 24px; text-align: center; border-radius: 24px;
@@ -150,7 +153,7 @@ input[type=date] { min-height: 48px; }
 .nota:empty { display: none; }
 .badge { position: absolute; top: 16px; left: 16px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 99px; background: var(--panel-2); color: var(--suave); }
 .badge.nueva { background: rgba(34, 197, 94, .15); color: #86efac; }
-.btn-audio { background: var(--panel-2); border: 1px solid var(--borde); border-radius: 99px; width: 44px; height: 44px; font-size: 18px; }
+.btn-audio { background: var(--panel-2); border: 1px solid var(--borde); border-radius: 99px; width: 52px; height: 52px; font-size: 22px; touch-action: manipulation; position: relative; z-index: 2; }
 body.sin-voz .btn-audio { display: none; }
 
 .tarjeta-quiz { height: auto; min-height: 190px; cursor: default; }

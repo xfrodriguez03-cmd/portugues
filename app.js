@@ -375,17 +375,33 @@ legal | bueno, copado |`;
       if (aj().audio && item.dir === 'es-pt') hablar(item.card.pt);
     }
   }
-  $('#tarjeta').addEventListener('click', e => {
-    if (e.target.closest('.btn-audio')) return;
-    voltear();
-  });
-
-  // Botones 🔊
-  document.addEventListener('click', e => {
-    const b = e.target.closest('.btn-audio');
-    if (!b || !sesion || !sesion.cola.length) return;
-    e.stopPropagation();
-    hablar(sesion.cola[0].card.pt);
+  // Botón 🔊 y dar vuelta la tarjeta.
+  // Safari en el iPhone a veces le pasa el toque a la cara escondida de la tarjeta
+  // (por el efecto 3D) en vez de al botón. Por eso, además de mirar qué elemento
+  // recibió el toque, miro DÓNDE apoyaste el dedo: si cae sobre el 🔊 visible, suena.
+  function botonAudioVisible() {
+    let b;
+    if (!$('#zona-quiz').hidden) b = $('[data-hablar=quiz]');
+    else if (!$('#zona-tarjeta').hidden) b = $('#tarjeta').classList.contains('girada') ? $('[data-hablar=dorso]') : $('[data-hablar=frente]');
+    return b && !b.hidden ? b : null;
+  }
+  function tocoElAudio(e) {
+    const b = botonAudioVisible();
+    if (!b) return false;
+    if (e.target.closest && e.target.closest('.btn-audio') === b) return true;
+    if (!e.clientX && !e.clientY) return false; // toque sin posición (teclado)
+    const r = b.getBoundingClientRect();
+    const margen = 10; // un poco de margen para el dedo
+    return e.clientX >= r.left - margen && e.clientX <= r.right + margen && e.clientY >= r.top - margen && e.clientY <= r.bottom + margen;
+  }
+  $('#vista-estudio').addEventListener('click', e => {
+    if (!sesion || !sesion.cola.length) return;
+    if (tocoElAudio(e)) {
+      hablar(sesion.cola[0].card.pt);
+      return;
+    }
+    if (e.target.closest('.btn-audio')) return; // un 🔊 escondido: no hago nada
+    if (e.target.closest('#tarjeta')) voltear();
   });
 
   // Quiz: elegir una opción
