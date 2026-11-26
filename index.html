@@ -193,9 +193,33 @@
         <button id="btn-probar-audio" class="btn btn-secundario btn-ancho" type="button">🔊 Probar sonido</button>
       </div>
 
+      <h2 class="subtitulo">Sincronizar entre aparatos</h2>
+      <div class="panel">
+        <div id="sync-off">
+          <p class="detalle">Usá la app en el celu y en la compu con las mismas tarjetas y el mismo progreso.</p>
+          <button id="btn-sync-crear" class="btn btn-primario btn-ancho" type="button">☁️ Activar en este aparato</button>
+          <p class="detalle chico sync-o">¿Ya la activaste en otro aparato? Escribí acá el código que te muestra:</p>
+          <div class="fila-botones">
+            <input id="sync-codigo" class="input-codigo" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text">
+            <button id="btn-sync-vincular" class="btn btn-secundario" type="button">Vincular</button>
+          </div>
+        </div>
+        <div id="sync-on" hidden>
+          <p class="detalle chico">Tu código. Escribilo en el otro aparato (Ajustes → Sincronizar):</p>
+          <p id="sync-codigo-ver" class="codigo-sync"></p>
+          <div class="fila-botones">
+            <button id="btn-sync-ahora" class="btn btn-primario" type="button">🔄 Sincronizar ahora</button>
+            <button id="btn-sync-copiar" class="btn btn-secundario" type="button">Copiar código</button>
+          </div>
+          <p id="sync-estado" class="detalle chico sync-estado"></p>
+          <p class="detalle chico">El código es la llave de tus datos: no lo compartas. Se sincroniza solo al abrir la app, al terminar una tanda y al editar tarjetas.</p>
+          <button id="btn-sync-salir" class="btn btn-peligro btn-ancho" type="button">Desvincular este aparato</button>
+        </div>
+      </div>
+
       <h2 class="subtitulo">Backup</h2>
       <div class="panel">
-        <p class="detalle">Tu progreso se guarda solo en este teléfono. Si se borran los datos de Safari, se pierde: bajate un backup cada tanto.</p>
+        <p class="detalle">Si no activaste la sincronización, tu progreso está solo en este aparato y se pierde si se borran los datos de Safari. Un backup cada tanto nunca está de más.</p>
         <p id="ultimo-backup" class="detalle chico"></p>
         <div class="fila-botones">
           <button id="btn-exportar" class="btn btn-primario" type="button">⬇️ Exportar backup</button>

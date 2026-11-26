@@ -52,6 +52,11 @@ h2 { margin: 0 0 8px; font-size: 22px; }
 .detalle { color: var(--suave); margin: 0; }
 .chico { font-size: 14px; }
 .centrado { text-align: center; }
+.codigo-sync { margin: 6px 0 12px; text-align: center; font: 700 24px/1.2 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .06em; color: var(--amarillo); user-select: all; -webkit-user-select: all; }
+.input-codigo { font-family: ui-monospace, Menlo, Consolas, monospace; text-transform: uppercase; flex: 2 1 180px !important; }
+.sync-o { margin: 14px 0 8px; }
+.sync-estado { margin: 10px 0; color: var(--texto); }
+#sync-on .btn-peligro { margin-top: 10px; }
 .aviso { margin: 0; padding: 12px 14px; border-radius: 14px; background: rgba(250, 204, 21, .1); color: var(--amarillo); font-size: 14px; }
 .version { text-align: center; color: var(--suave); font-size: 13px; margin: 8px 0 0; }
 code { background: var(--panel-2); padding: 1px 6px; border-radius: 6px; font-size: 13px; }

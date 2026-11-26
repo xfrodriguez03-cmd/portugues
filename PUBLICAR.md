@@ -57,6 +57,12 @@ No hace falta instalar nada: se hace todo desde la web de GitHub.
 
 Tus tarjetas y tu progreso **no se pierden** al actualizar: viven en el teléfono, no en GitHub.
 
+## Sincronización entre aparatos
+- En un aparato: **Ajustes → Sincronizar entre aparatos → Activar en este aparato**. Te muestra un código (16 letras y números).
+- En el otro: mismo lugar, escribí el código y tocá **Vincular**. Las tarjetas y el progreso de los dos se combinan sin perder nada.
+- Después se sincroniza solo: al abrir la app, al terminar una tanda, al editar tarjetas y al salir.
+- El servidor es un Worker de Cloudflare (carpeta `sync/`). Si cambiás `sync/worker.js`: `npx wrangler deploy` desde `sync/`.
+
 ## Para probarla en la PC
 - Con Claude Code: pedile "abrí la app de portugués" (usa el servidor `portugues-tarjetas` de `.claude/launch.json`).
 - Las pruebas del repaso espaciado: en esta carpeta, `node pruebas.js`.

@@ -1,0 +1,10 @@
+// Servidor de sincronización de la app de tarjetas (Cloudflare Worker + KV).
+// Publicar:  npx wrangler deploy   (desde esta carpeta)
+{
+  "name": "portugues-sync",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-01",
+  "kv_namespaces": [
+    { "binding": "SYNC", "id": "38030414e08c4b46b0013651ae50f1dc" }
+  ]
+}

@@ -124,6 +124,63 @@ prueba('no modifica el progreso', () => {
   assert.strictEqual(JSON.stringify(prog), copia);
 });
 
+console.log('Sincronización (combinar dos aparatos)');
+const semilla = cards.map((c, i) => Object.assign({}, c, { created: i }));
+const propias = Array.from({ length: 15 }, (_, i) => ({ id: 'c' + i, pt: 'propia' + i, es: 'mía' + i, note: '', deck: 'Falsos amigos', created: 1000 + i, mod: 5000 + i }));
+prueba('celu con 41 + compu con 26 → 41, sin perder nada', () => {
+  const celu = { cards: semilla.concat(propias), progress: { 's1:pt-es': Object.assign(S.calificar(S.progresoNuevo(), 2, H), { ts: 100 }) }, days: [H], log: { [H]: { nuevas: 15, repasos: 0, extra: 0 } } };
+  const compu = { cards: semilla, progress: {}, days: [], log: {} };
+  const r = S.combinarDatos(celu, compu);
+  assert.strictEqual(r.cards.length, 41);
+  assert.ok(r.progress['s1:pt-es']); assert.deepStrictEqual(r.days, [H]);
+  assert.strictEqual(r.log[H].nuevas, 15);
+});
+prueba('da lo mismo el orden', () => {
+  const a = { cards: semilla.slice(0, 10).concat(propias.slice(0, 3)), progress: { 's2:pt-es': { state: 'review', ts: 5, reps: 1 } }, days: ['2026-11-20'] };
+  const b = { cards: semilla.slice(5), progress: { 's2:pt-es': { state: 'review', ts: 9, reps: 2 } }, days: [H] };
+  assert.strictEqual(JSON.stringify(S.combinarDatos(a, b)), JSON.stringify(S.combinarDatos(b, a)));
+});
+prueba('combinar dos veces da lo mismo', () => {
+  const a = { cards: semilla.concat(propias), progress: {}, days: [H] };
+  const r1 = S.combinarDatos(a, { cards: semilla });
+  assert.strictEqual(JSON.stringify(S.combinarDatos(r1, r1)), JSON.stringify(r1));
+});
+prueba('gana el repaso más reciente', () => {
+  const viejo = { state: 'review', interval: 3, ts: 100, last: '2026-11-20' };
+  const nuevo = { state: 'review', interval: 8, ts: 200, last: '2026-11-24' };
+  assert.strictEqual(S.combinarDatos({ cards: semilla, progress: { 's1:pt-es': viejo } }, { cards: semilla, progress: { 's1:pt-es': nuevo } }).progress['s1:pt-es'].interval, 8);
+});
+prueba('gana la edición más nueva de una tarjeta', () => {
+  const v1 = Object.assign({}, semilla[0], { es: 'raro', mod: 10 });
+  const v2 = Object.assign({}, semilla[0], { es: 'extraño', mod: 20 });
+  assert.strictEqual(S.combinarDatos({ cards: [v1] }, { cards: [v2] }).cards[0].es, 'extraño');
+});
+prueba('una tarjeta borrada en un aparato no vuelve desde el otro', () => {
+  const a = { cards: semilla.slice(1), borradas: { s1: 300 }, progress: {} };
+  const b = { cards: semilla, progress: { 's1:pt-es': { state: 'review', ts: 50 } } };
+  const r = S.combinarDatos(a, b);
+  assert.ok(!r.cards.some(c => c.id === 's1')); assert.ok(!r.progress['s1:pt-es']);
+  assert.strictEqual(r.cards.length, 25);
+});
+prueba('la misma tarjeta cargada en los dos (ids distintos) queda una sola', () => {
+  const x = { id: 'cA', pt: 'Saudade', es: 'nostalgia', deck: 'Extra', created: 1 };
+  const y = { id: 'cB', pt: 'saudade', es: 'nostalgia', deck: 'Extra', created: 2 };
+  const r = S.combinarDatos({ cards: [x], progress: {} }, { cards: [y], progress: { 'cB:pt-es': { state: 'review', reps: 3, ts: 1 } } });
+  assert.strictEqual(r.cards.length, 1); assert.strictEqual(r.cards[0].id, 'cB');
+});
+prueba('reiniciar el progreso en un aparato no lo resucita desde el otro', () => {
+  const reinicio = new Date(2026, 10, 20, 12).getTime();
+  const a = { cards: semilla, progress: {}, days: [], reinicio };
+  const b = { cards: semilla, progress: { 's1:pt-es': { state: 'review', ts: reinicio - 1000 }, 's2:pt-es': { state: 'review', ts: reinicio + 1000 } }, days: ['2026-11-10', '2026-11-21'] };
+  const r = S.combinarDatos(a, b);
+  assert.ok(!r.progress['s1:pt-es']); assert.ok(r.progress['s2:pt-es']);
+  assert.deepStrictEqual(r.days, ['2026-11-21']);
+});
+prueba('nube vacía (primera vez) no rompe nada', () => {
+  const r = S.combinarDatos({ cards: semilla, progress: {}, days: [H] }, null);
+  assert.strictEqual(r.cards.length, 26);
+});
+
 console.log('Racha y aprendidas');
 prueba('racha de 3 días', () => assert.strictEqual(S.racha(['2026-11-22', '2026-11-23', H], H), 3));
 prueba('la racha sigue viva si estudiaste ayer', () => assert.strictEqual(S.racha(['2026-11-22', '2026-11-23'], H), 2));

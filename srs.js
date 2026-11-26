@@ -245,6 +245,85 @@
     return { tarjetas, errores };
   }
 
+  // ---------- Sincronización: combinar los datos de dos aparatos ----------
+  // a y b: { cards, progress, days, log, borradas, reinicio }. Devuelve la combinación,
+  // sin perder nada: da lo mismo el orden (combinar(a,b) = combinar(b,a)) y repetirlo.
+  //  - Tarjetas: se suman las de los dos lados. Si la misma tarjeta se editó en los dos,
+  //    gana la edición más nueva (campo mod). Las borradas (con su fecha) no vuelven.
+  //  - Progreso: de cada tarjeta y dirección gana el repaso más reciente.
+  //  - Días estudiados: se suman. Contadores del día: el mayor de cada uno.
+  function combinarDatos(a, b) {
+    a = a || {}; b = b || {};
+    const comoTexto = x => JSON.stringify(x);
+    const borradas = {};
+    for (const src of [a.borradas || {}, b.borradas || {}]) {
+      for (const [id, t] of Object.entries(src)) borradas[id] = Math.max(borradas[id] || 0, Number(t) || 0);
+    }
+    const reinicio = Math.max(Number(a.reinicio) || 0, Number(b.reinicio) || 0);
+
+    // Tarjetas: unión por id
+    const porId = new Map();
+    for (const c of (a.cards || []).concat(b.cards || [])) {
+      if (!c || !c.id) continue;
+      const ya = porId.get(c.id);
+      if (!ya || (c.mod || 0) > (ya.mod || 0) || ((c.mod || 0) === (ya.mod || 0) && comoTexto(c) > comoTexto(ya))) porId.set(c.id, c);
+    }
+
+    // Progreso: el más reciente
+    const progress = {};
+    const pa = a.progress || {}, pb = b.progress || {};
+    for (const k of new Set(Object.keys(pa).concat(Object.keys(pb)))) {
+      const p = progresoMasNuevo(pa[k], pb[k]);
+      if (p && !(reinicio && (p.ts || 0) < reinicio)) progress[k] = p;
+    }
+
+    // Sacar las borradas
+    let cards = Array.from(porId.values()).filter(c => !(borradas[c.id] && borradas[c.id] >= (c.mod || 0)));
+
+    // La misma tarjeta cargada por separado en los dos aparatos (ids distintos): queda una,
+    // la que más estudiaste.
+    const norm = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+    const estudio = c => DIRS.reduce((n, d) => { const p = progress[clave(c.id, d)]; return n + (p ? (p.reps || 0) + (p.lapses || 0) : 0); }, 0);
+    const grupos = new Map();
+    for (const c of cards) {
+      const k = norm(c.deck) + '|' + norm(c.pt) + '|' + norm(c.es);
+      if (!grupos.has(k)) grupos.set(k, []);
+      grupos.get(k).push(c);
+    }
+    cards = [];
+    for (const grupo of grupos.values()) {
+      grupo.sort((x, y) => estudio(y) - estudio(x) || (x.created || 0) - (y.created || 0) || (x.id < y.id ? -1 : 1));
+      cards.push(grupo[0]);
+    }
+    cards.sort((x, y) => (x.created || 0) - (y.created || 0) || (x.id < y.id ? -1 : 1));
+
+    // Progreso de tarjetas que ya no existen: afuera
+    const ids = new Set(cards.map(c => c.id));
+    for (const k of Object.keys(progress)) if (!ids.has(k.split(':')[0])) delete progress[k];
+
+    const diaReinicio = reinicio ? hoy(new Date(reinicio)) : '';
+    const days = Array.from(new Set((a.days || []).concat(b.days || []))).filter(d => d >= diaReinicio).sort();
+    const log = {};
+    for (const src of [a.log || {}, b.log || {}]) {
+      for (const [dia, r] of Object.entries(src)) {
+        if (dia < diaReinicio) continue;
+        const ya = log[dia] || { nuevas: 0, repasos: 0, extra: 0 };
+        log[dia] = { nuevas: Math.max(ya.nuevas, r.nuevas || 0), repasos: Math.max(ya.repasos, r.repasos || 0), extra: Math.max(ya.extra, r.extra || 0) };
+      }
+    }
+    return { cards, progress, days, log, borradas, reinicio };
+  }
+
+  function progresoMasNuevo(p, q) {
+    if (!p) return q || null;
+    if (!q) return p;
+    if ((p.ts || 0) !== (q.ts || 0)) return (p.ts || 0) > (q.ts || 0) ? p : q;
+    if ((p.last || '') !== (q.last || '')) return (p.last || '') > (q.last || '') ? p : q;
+    const rp = (p.reps || 0) + (p.lapses || 0), rq = (q.reps || 0) + (q.lapses || 0);
+    if (rp !== rq) return rp > rq ? p : q;
+    return JSON.stringify(p) >= JSON.stringify(q) ? p : q;
+  }
+
   // ---------- Utilidades ----------
   function mezclar(arr, rng) {
     rng = rng || Math.random;
@@ -261,7 +340,7 @@
     hoy, sumarDias, diasEntre,
     progresoNuevo, clave, calificar, textoIntervalo,
     armarCola, armarPractica, estaAprendida, racha,
-    respuesta, opcionesQuiz, parsearTexto, mezclar,
+    respuesta, opcionesQuiz, parsearTexto, mezclar, combinarDatos,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = SRS;

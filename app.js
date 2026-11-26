@@ -59,10 +59,12 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
   function normalizar(d) {
     return {
       version: 1,
-      cards: Array.isArray(d.cards) ? completarEjemplos(d.cards.filter(c => c && c.id && c.pt && c.es).map(c => ({ id: String(c.id), pt: String(c.pt), es: String(c.es), note: String(c.note || ''), ex: String(c.ex || ''), exEs: String(c.exEs || ''), deck: String(c.deck || MAZO_INICIAL), created: Number(c.created) || 0 }))) : [],
+      cards: Array.isArray(d.cards) ? completarEjemplos(d.cards.filter(c => c && c.id && c.pt && c.es).map(c => ({ id: String(c.id), pt: String(c.pt), es: String(c.es), note: String(c.note || ''), ex: String(c.ex || ''), exEs: String(c.exEs || ''), deck: String(c.deck || MAZO_INICIAL), created: Number(c.created) || 0, mod: Number(c.mod) || 0 }))) : [],
       progress: d.progress && typeof d.progress === 'object' ? d.progress : {},
       days: Array.isArray(d.days) ? d.days : [],
       log: d.log && typeof d.log === 'object' ? d.log : {},
+      borradas: d.borradas && typeof d.borradas === 'object' ? d.borradas : {}, // id → cuándo se borró (para la sincronización)
+      reinicio: Number(d.reinicio) || 0,
       settings: Object.assign({}, AJUSTES_BASE, d.settings || {}),
     };
   }
@@ -467,7 +469,7 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
       const p = estado.progress[k] || SRS.progresoNuevo();
       const log = registroHoy();
       if (p.state === 'new') log.nuevas += 1; else log.repasos += 1;
-      estado.progress[k] = SRS.calificar(p, nota, f);
+      estado.progress[k] = Object.assign(SRS.calificar(p, nota, f), { ts: Date.now() });
     }
     if (!estado.days.includes(f)) estado.days.push(f);
     s.resultados[nota] += 1;
@@ -539,6 +541,7 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
     $('#fin-resumen').textContent = `✅ ${bien} la sabía · 🤔 ${medio} más o menos · ❌ ${mal} no la sabía. Racha: ${racha} ${racha === 1 ? 'día' : 'días'} 🔥`;
     $('#btn-practicar-mas').hidden = quedanHoy > 0 || !hayParaPracticar();
     $('#btn-practicar-mas').textContent = sesion.practica ? '🔁 Otra tanda de práctica' : '🔁 Seguir practicando';
+    sincronizar();
   }
 
   // Teclado (para probar en la compu): espacio da vuelta, 1-2-3 califica
@@ -642,26 +645,29 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
     const repetida = estado.cards.find(c => c.id !== editando && c.deck === datos.deck && sinTildes(c.pt) === sinTildes(datos.pt) && sinTildes(c.es) === sinTildes(datos.es));
     if (repetida) return aviso('Esa tarjeta ya está en el mazo');
     if (editando) {
-      Object.assign(estado.cards.find(c => c.id === editando), datos);
+      Object.assign(estado.cards.find(c => c.id === editando), datos, { mod: Date.now() });
       aviso('Tarjeta guardada');
     } else {
-      estado.cards.push(Object.assign({ id: nuevoId(), created: Date.now() }, datos));
+      estado.cards.push(Object.assign({ id: nuevoId(), created: Date.now(), mod: Date.now() }, datos));
       aviso('Tarjeta agregada');
     }
     guardar();
     dlgT.close();
     pintarLista();
+    sincronizarPronto();
   });
 
   $('#btn-borrar').addEventListener('click', () => {
     const c = estado.cards.find(x => x.id === editando);
     if (!c || !confirm(`¿Borrar "${c.pt}"? También se borra su progreso.`)) return;
     estado.cards = estado.cards.filter(x => x.id !== c.id);
+    estado.borradas[c.id] = Date.now(); // para que no vuelva desde el otro aparato
     SRS.DIRS.forEach(d => delete estado.progress[SRS.clave(c.id, d)]);
     guardar();
     dlgT.close();
     pintarLista();
     aviso('Tarjeta borrada');
+    sincronizarPronto();
   });
 
   $$('[data-cerrar]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
@@ -719,8 +725,8 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
     const r = analizarTanda();
     if (!r.nuevas.length && !r.conEjemplo.length) return aviso(r.repetidas ? 'Esas tarjetas ya estaban' : 'No encontré tarjetas para agregar');
     const base = Date.now();
-    r.nuevas.forEach((t, i) => estado.cards.push({ id: nuevoId() + i, pt: t.pt, es: t.es, note: t.note, ex: t.ex, exEs: t.exEs, deck: r.deck, created: base + i }));
-    r.conEjemplo.forEach(({ card, t }) => { card.ex = t.ex; card.exEs = t.exEs; if (!card.note && t.note) card.note = t.note; });
+    r.nuevas.forEach((t, i) => estado.cards.push({ id: nuevoId() + i, pt: t.pt, es: t.es, note: t.note, ex: t.ex, exEs: t.exEs, deck: r.deck, created: base + i, mod: base }));
+    r.conEjemplo.forEach(({ card, t }) => { card.ex = t.ex; card.exEs = t.exEs; if (!card.note && t.note) card.note = t.note; card.mod = base; });
     guardar();
     dlgI.close();
     pintarLista();
@@ -728,6 +734,7 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
     if (r.nuevas.length) partes.push(`Agregué ${r.nuevas.length} ${r.nuevas.length === 1 ? 'tarjeta' : 'tarjetas'} a "${r.deck}"`);
     if (r.conEjemplo.length) partes.push(`${r.conEjemplo.length} con ejemplo nuevo`);
     aviso(partes.join(' · '));
+    sincronizarPronto();
   });
 
   // ================= Ajustes =================
@@ -738,6 +745,7 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
     $('#aj-audio').checked = !!aj().audio;
     const u = aj().lastBackup;
     $('#ultimo-backup').textContent = u ? `Último backup: ${u.split('-').reverse().join('/')}` : 'Todavía no hiciste ningún backup.';
+    pintarSync();
   }
 
   $('#aj-nuevas').addEventListener('change', e => {
@@ -789,31 +797,192 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
     if (!datos || !Array.isArray(datos.cards) || typeof datos.progress !== 'object') return aviso('Ese archivo no es un backup de esta app');
     const fecha = datos.exportado ? new Date(datos.exportado).toLocaleDateString('es-AR') : 'fecha desconocida';
     if (!confirm(`Este backup tiene ${datos.cards.length} tarjetas (del ${fecha}).\nReemplaza TODO lo que tenés ahora en la app. ¿Seguimos?`)) return;
+    const syncDeEsteAparato = aj().sync;
     estado = normalizar(datos);
+    estado.settings.sync = syncDeEsteAparato; // el vínculo de sincronización es de cada aparato
     guardar();
     pintarAjustes();
     aviso('Backup importado ✅');
+    sincronizar();
   });
 
   // ----- Zona peligrosa -----
   $('#btn-reiniciar').addEventListener('click', () => {
     if (!confirm('¿Reiniciar todo el progreso? Las tarjetas quedan, pero vuelven a ser nuevas y se pierde la racha.')) return;
     estado.progress = {}; estado.days = []; estado.log = {};
+    estado.reinicio = Date.now(); // así el otro aparato tampoco trae el progreso viejo
     guardar(); aviso('Progreso reiniciado');
+    sincronizar();
   });
   $('#btn-restaurar').addEventListener('click', () => {
     const ids = new Set(estado.cards.map(c => c.id));
     const faltan = tarjetasSemilla().filter(c => !ids.has(c.id));
     if (!faltan.length) return aviso('Ya tenés todas las tarjetas del mazo inicial');
+    const ahora = Date.now();
+    faltan.forEach(c => { c.mod = ahora; delete estado.borradas[c.id]; });
     estado.cards.push(...faltan);
     guardar(); aviso(`Recuperé ${faltan.length} ${faltan.length === 1 ? 'tarjeta' : 'tarjetas'}`);
+    sincronizar();
+  });
+
+  // ================= Sincronización entre aparatos =================
+  // Cada aparato baja lo que hay en la nube, lo combina con lo suyo (SRS.combinarDatos,
+  // que no pierde nada) y sube el resultado. El código de sincronización es la llave.
+  const URL_SYNC = 'https://portugues-sync.precio-claro-app.workers.dev/datos';
+  const LETRAS_CODIGO = 'abcdefghjkmnpqrstuvwxyz23456789'; // sin 0/o/1/l/i
+  const codigoSync = () => (aj().sync && aj().sync.codigo) || '';
+  const limpiarCodigo = t => String(t).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const codigoValido = c => c.length === 16 && [...c].every(x => LETRAS_CODIGO.includes(x));
+  const mostrarCodigo = c => c.toUpperCase().match(/.{1,4}/g).join('-');
+  const datosSync = e => ({ cards: e.cards, progress: e.progress, days: e.days, log: e.log, borradas: e.borradas || {}, reinicio: e.reinicio || 0 });
+
+  function codigoNuevo() {
+    const azar = crypto.getRandomValues(new Uint8Array(16));
+    return Array.from(azar, b => LETRAS_CODIGO[b % LETRAS_CODIGO.length]).join('');
+  }
+
+  async function pedirNube(metodo, codigo, cuerpo) {
+    const r = await fetch(URL_SYNC, {
+      method: metodo,
+      headers: Object.assign({ 'X-Codigo': codigo }, cuerpo ? { 'Content-Type': 'application/json' } : {}),
+      body: cuerpo,
+      cache: 'no-store',
+      keepalive: metodo === 'PUT' && cuerpo && cuerpo.length < 60000,
+    });
+    if (!r.ok) throw new Error('El servidor respondió ' + r.status);
+    return r.json();
+  }
+
+  let sincEnCurso = null;
+  let sincOtraVez = false;
+  let estadoSync = '';
+
+  function sincronizar() {
+    const codigo = codigoSync();
+    if (!codigo) return Promise.resolve();
+    if (sincEnCurso) { sincOtraVez = true; return sincEnCurso; }
+    sincEnCurso = (async () => {
+      estadoSync = 'Sincronizando…';
+      pintarSync();
+      try {
+        const remoto = await pedirNube('GET', codigo);
+        // Combino con lo que hay AHORA (por si estudiaste mientras bajaba)
+        const local = datosSync(estado);
+        const antes = estado.cards.length;
+        const combinado = SRS.combinarDatos(local, remoto);
+        const cambioLocal = JSON.stringify(combinado) !== JSON.stringify(SRS.combinarDatos(local, null));
+        Object.assign(estado, combinado);
+        completarEjemplos(estado.cards);
+        aj().sync.ultima = Date.now();
+        guardar();
+        const nubeIgual = remoto && JSON.stringify(combinado) === JSON.stringify(SRS.combinarDatos(remoto, null));
+        if (!nubeIgual) await pedirNube('PUT', codigo, JSON.stringify(Object.assign({ app: 'tarjetas-portugues', actualizado: new Date().toISOString() }, combinado)));
+        estadoSync = '';
+        if (cambioLocal) {
+          const dif = estado.cards.length - antes;
+          aviso(dif === 1 ? '☁️ Llegó 1 tarjeta del otro aparato' : dif > 1 ? `☁️ Llegaron ${dif} tarjetas del otro aparato` : '☁️ Se actualizó con el otro aparato');
+          repintar();
+        }
+      } catch (e) {
+        estadoSync = navigator.onLine === false ? 'Sin internet: se sincroniza cuando vuelva la conexión.' : 'No se pudo sincronizar (' + e.message + '). Se reintenta solo.';
+      } finally {
+        sincEnCurso = null;
+        pintarSync();
+        if (sincOtraVez) { sincOtraVez = false; sincronizar(); }
+      }
+    })();
+    return sincEnCurso;
+  }
+
+  // Después de editar tarjetas espero un poquito, por si hacés varios cambios seguidos
+  let timerSync;
+  function sincronizarPronto() {
+    clearTimeout(timerSync);
+    timerSync = setTimeout(sincronizar, 2500);
+  }
+
+  function repintar() {
+    if (document.body.classList.contains('estudiando')) return; // no interrumpo una tanda
+    if ($('#vista-inicio').classList.contains('activa')) pintarInicio();
+    if ($('#vista-tarjetas').classList.contains('activa')) pintarLista();
+  }
+
+  function haceCuanto(ms) {
+    const s = Math.round((Date.now() - ms) / 1000);
+    if (s < 60) return 'recién';
+    if (s < 3600) return `hace ${Math.round(s / 60)} min`;
+    if (s < 86400) return `hace ${Math.round(s / 3600)} h`;
+    return `hace ${Math.round(s / 86400)} días`;
+  }
+
+  function pintarSync() {
+    const codigo = codigoSync();
+    $('#sync-off').hidden = !!codigo;
+    $('#sync-on').hidden = !codigo;
+    if (!codigo) return;
+    $('#sync-codigo-ver').textContent = mostrarCodigo(codigo);
+    const u = aj().sync.ultima;
+    $('#sync-estado').textContent = estadoSync || (u ? `☁️ Sincronizado ${haceCuanto(u)}.` : 'Todavía no se sincronizó.');
+  }
+
+  $('#btn-sync-crear').addEventListener('click', async () => {
+    aj().sync = { codigo: codigoNuevo(), ultima: 0 };
+    guardar();
+    pintarSync();
+    await sincronizar();
+    aviso('Listo: escribí este código en el otro aparato');
+  });
+
+  $('#btn-sync-vincular').addEventListener('click', async () => {
+    const codigo = limpiarCodigo($('#sync-codigo').value);
+    if (!codigoValido(codigo)) return aviso('Ese código no es válido: son 16 letras y números');
+    const boton = $('#btn-sync-vincular');
+    boton.disabled = true;
+    try {
+      const remoto = await pedirNube('GET', codigo);
+      if (!remoto && !confirm('Ese código todavía no tiene datos guardados. ¿Lo escribiste bien? Tocá Aceptar para usarlo igual.')) return;
+      aj().sync = { codigo, ultima: 0 };
+      guardar();
+      $('#sync-codigo').value = '';
+      await sincronizar();
+      aviso('☁️ Vinculado: tus tarjetas se combinaron con las del otro aparato');
+    } catch (e) {
+      aviso('No pude conectarme. Revisá internet y probá de nuevo.');
+    } finally {
+      boton.disabled = false;
+    }
+  });
+
+  $('#btn-sync-ahora').addEventListener('click', () => sincronizar());
+
+  $('#btn-sync-copiar').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(mostrarCodigo(codigoSync()));
+      aviso('Código copiado');
+    } catch (e) {
+      aviso('No pude copiarlo: anotalo a mano');
+    }
+  });
+
+  $('#btn-sync-salir').addEventListener('click', () => {
+    if (!confirm('¿Desvincular este aparato? Tus tarjetas quedan acá, pero deja de sincronizarse con el otro.')) return;
+    delete aj().sync;
+    guardar();
+    pintarSync();
+    aviso('Este aparato ya no se sincroniza');
   });
 
   // ================= Arranque =================
-  // Si la app quedó abierta de un día para el otro, refresca "para hoy" al volver.
+  // Al volver a la app: refresca "para hoy" y sincroniza. Al salir: sube lo último.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && $('#vista-inicio').classList.contains('activa')) pintarInicio();
+    if (document.visibilityState === 'visible') {
+      if ($('#vista-inicio').classList.contains('activa')) pintarInicio();
+      sincronizar();
+    } else {
+      sincronizar();
+    }
   });
+  window.addEventListener('online', () => sincronizar());
 
   // Pedirle al navegador que no borre los datos si le falta espacio
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
@@ -824,4 +993,6 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
   }
 
   pintarInicio();
+  pintarSync();
+  setTimeout(sincronizar, 800);
 })();
