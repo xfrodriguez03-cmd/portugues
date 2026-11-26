@@ -1,0 +1,3 @@
+# Caché local de Cloudflare (tiene datos de la cuenta): nunca subirlo
+.wrangler/
+sync/.wrangler/
