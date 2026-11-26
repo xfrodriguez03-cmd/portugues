@@ -137,8 +137,12 @@ input[type=date] { min-height: 48px; }
 }
 .tarjeta.girada { transform: rotateY(180deg); }
 .tarjeta.sin-animacion { transition: none; }
-/* La cara que no se ve no recibe toques (Safari se los daba igual) */
-.tarjeta:not(.girada) .dorso, .tarjeta.girada .frente { pointer-events: none; }
+/* La cara que no se ve no recibe toques (Safari se los daba igual) y se oculta
+   del todo a mitad del giro: Safari dibujaba el 🔊 de la cara de atrás encima del texto. */
+.tarjeta .cara { transition: visibility 0s linear .25s; }
+.tarjeta.sin-animacion .cara { transition: none; }
+.tarjeta:not(.girada) .dorso, .tarjeta.girada .frente { pointer-events: none; visibility: hidden; }
+.tarjeta-quiz .cara { visibility: visible; }
 .tarjeta-quiz { transform-style: flat; -webkit-transform-style: flat; } /* al pasar a la siguiente no se ve la respuesta girando */
 .cara {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -154,7 +158,7 @@ input[type=date] { min-height: 48px; }
 .nota:empty { display: none; }
 .badge { position: absolute; top: 16px; left: 16px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 99px; background: var(--panel-2); color: var(--suave); }
 .badge.nueva { background: rgba(34, 197, 94, .15); color: #86efac; }
-.btn-audio { background: var(--panel-2); border: 1px solid var(--borde); border-radius: 99px; width: 52px; height: 52px; font-size: 22px; touch-action: manipulation; position: relative; z-index: 2; }
+.btn-audio { background: var(--panel-2); border: 1px solid var(--borde); border-radius: 99px; width: 52px; height: 52px; font-size: 22px; touch-action: manipulation; }
 body.sin-voz .btn-audio { display: none; }
 
 .tarjeta-quiz { height: auto; min-height: 190px; cursor: default; }
@@ -180,6 +184,15 @@ body.sin-voz .btn-audio { display: none; }
 .btn-medio { background: rgba(250, 204, 21, .12); border-color: rgba(250, 204, 21, .4); color: #fde68a; }
 .btn-bien { background: rgba(34, 197, 94, .14); border-color: rgba(34, 197, 94, .45); color: #bbf7d0; }
 #vista-estudio.activa { min-height: calc(100dvh - var(--seg-arriba) - var(--seg-abajo) - 32px); }
+
+.explicacion { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; animation: aparecer .25s ease; }
+.explicacion > .etiqueta { text-align: center; }
+.exp-panel { display: flex; flex-direction: column; gap: 8px; }
+.exp-palabra { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.exp-es { margin: 0; font-size: 20px; color: #bbf7d0; font-weight: 600; }
+.exp-ex { margin: 0; font-size: 21px; line-height: 1.45; font-weight: 600; }
+.exp-ex mark { background: rgba(250, 204, 21, .22); color: var(--amarillo); border-radius: 6px; padding: 0 4px; }
+.exp-exes { margin: 0 0 4px; color: var(--suave); font-style: italic; }
 
 .fin { text-align: center; display: flex; flex-direction: column; gap: 12px; margin-top: 10vh; }
 .fin-emoji { font-size: 64px; margin: 0; }

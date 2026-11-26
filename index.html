@@ -110,6 +110,27 @@
         <p id="quiz-nota" class="nota nota-quiz"></p>
       </div>
 
+      <!-- Explicación con ejemplo (después de "No la sabía") -->
+      <div id="explicacion" class="explicacion" hidden>
+        <p class="etiqueta">📖 Para que te quede</p>
+        <div class="panel exp-panel">
+          <div class="exp-palabra">
+            <p id="exp-pt" class="palabra"></p>
+            <button id="exp-audio-pt" class="btn-audio" type="button" aria-label="Escuchar la palabra">🔊</button>
+          </div>
+          <p id="exp-es" class="exp-es"></p>
+          <p id="exp-nota" class="nota"></p>
+        </div>
+        <div id="exp-ejemplo" class="panel exp-panel">
+          <p class="etiqueta">Ejemplo</p>
+          <p id="exp-ex" class="exp-ex" lang="pt-BR"></p>
+          <p id="exp-exes" class="exp-exes"></p>
+          <button id="exp-audio-ex" class="btn btn-secundario btn-ancho" type="button">🔊 Escuchar la oración</button>
+        </div>
+        <p id="exp-sin" class="detalle chico centrado">Esta tarjeta todavía no tiene ejemplo. Podés agregárselo en Tarjetas, tocando la tarjeta.</p>
+        <button id="btn-entendido" class="btn btn-primario btn-grande btn-ancho" type="button">Entendido, seguir</button>
+      </div>
+
       <!-- Calificación -->
       <div id="calificar" class="calificar" hidden>
         <button class="btn btn-mal" type="button" data-nota="0"><b>No la sabía</b><small data-int="0"></small></button>
@@ -210,6 +231,8 @@
       <label class="campo"><span>Portugués</span><input name="pt" required autocomplete="off" autocapitalize="none"></label>
       <label class="campo"><span>Español</span><input name="es" required autocomplete="off" autocapitalize="none"></label>
       <label class="campo"><span>Nota (opcional)</span><input name="note" autocomplete="off" autocapitalize="none"></label>
+      <label class="campo"><span>Ejemplo en portugués (opcional)</span><input name="ex" autocomplete="off" placeholder="Minha mala não chegou no aeroporto."></label>
+      <label class="campo"><span>Traducción del ejemplo</span><input name="exEs" autocomplete="off" placeholder="Mi valija no llegó al aeropuerto."></label>
       <label class="campo"><span>Mazo</span><input name="deck" list="lista-mazos" autocomplete="off"></label>
       <p id="dlg-tarjeta-estado" class="detalle chico"></p>
       <div class="fila-botones">
@@ -224,8 +247,8 @@
   <dialog id="dlg-importar">
     <form id="form-importar" method="dialog">
       <h2>Pegar tanda</h2>
-      <p class="detalle chico">Una tarjeta por línea: <code>portugués | español | nota</code>. La nota es opcional.</p>
-      <textarea name="texto" rows="8" placeholder="obrigado | gracias | &#10;saudade | nostalgia | no tiene traducción exacta"></textarea>
+      <p class="detalle chico">Una tarjeta por línea: <code>portugués | español | nota | ejemplo | traducción</code>. Nota y ejemplo son opcionales. Si la tarjeta ya existe y no tenía ejemplo, se lo agrega.</p>
+      <textarea name="texto" rows="8" placeholder="obrigado | gracias | &#10;saudade | nostalgia | sin traducción exacta | Que saudade de casa! | ¡Cómo extraño mi casa!"></textarea>
       <label class="campo"><span>Mazo</span><input name="deck" list="lista-mazos" autocomplete="off"></label>
       <p id="importar-vista" class="detalle chico"></p>
       <div class="fila-botones">

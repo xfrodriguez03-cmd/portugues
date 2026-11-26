@@ -7,32 +7,33 @@
 
   const CLAVE = 'tarjetas-portugues-v1';
   const MAZO_INICIAL = 'Falsos amigos';
-  const SEMILLA = `esquisito | raro | exquisito = delicioso
-embaraçado | avergonzado | embarazada = grávida
-polvo | pulpo | polvo = pó
-pelado | desnudo | pelado = careca
-largo | ancho | largo = comprido
-apelido | apodo | apellido = sobrenome
-oficina | taller mecánico | oficina = escritório
-cena | escena | cena = jantar
-rato | ratón | un rato = um tempinho
-copo | vaso para tomar | vaso = maceta / inodoro
-presunto | jamón | presunto = suposto
-propina | soborno | propina = gorjeta
-sobremesa | postre |
-chato | aburrido, pesado | plano = achatado
-esperto | vivo, astuto | experto = especialista
-ligar | llamar por teléfono |
-puxar / empurrar | tirar / empujar (puertas) |
-todavia | sin embargo | todavía = ainda
-logo | enseguida | luego = depois
-acordar | despertarse | acordar = combinar
-fechar | cerrar |
-pegar | agarrar, tomar | pegar o ônibus = tomar el colectivo
-brincar | jugar, bromear | brincar = pular
-mala | valija | mala = ruim
-roxo | violeta | rojo = vermelho
-legal | bueno, copado |`;
+  // Formato: portugués | español | nota | ejemplo en portugués | traducción del ejemplo
+  const SEMILLA = `esquisito | raro | exquisito = delicioso | Que cheiro esquisito! Acho que o leite estragou. | ¡Qué olor raro! Creo que la leche se echó a perder.
+embaraçado | avergonzado | embarazada = grávida | Fiquei embaraçado quando errei o nome dela. | Me dio vergüenza cuando me equivoqué con su nombre.
+polvo | pulpo | polvo = pó | O polvo grelhado desse restaurante é uma delícia. | El pulpo a la parrilla de este restaurante es una delicia.
+pelado | desnudo | pelado = careca | Ele saiu do banho e andou pelado pela casa. | Salió de la ducha y anduvo desnudo por la casa.
+largo | ancho | largo = comprido | O corredor é largo, cabem duas pessoas lado a lado. | El pasillo es ancho, entran dos personas una al lado de la otra.
+apelido | apodo | apellido = sobrenome | O apelido dele é Juninho, mas o nome é João. | Su apodo es Juninho, pero se llama João.
+oficina | taller mecánico | oficina = escritório | Levei o carro na oficina porque o freio estava fazendo barulho. | Llevé el auto al taller porque el freno hacía ruido.
+cena | escena | cena = jantar | Essa cena do filme me fez chorar. | Esa escena de la película me hizo llorar.
+rato | ratón | un rato = um tempinho | Vi um rato correndo na cozinha! | ¡Vi un ratón corriendo en la cocina!
+copo | vaso para tomar | vaso = maceta / inodoro | Me vê um copo de água, por favor? | ¿Me das un vaso de agua, por favor?
+presunto | jamón | presunto = suposto | Quero um sanduíche de presunto e queijo. | Quiero un sándwich de jamón y queso.
+propina | soborno | propina = gorjeta | O policial foi preso por aceitar propina. | El policía fue detenido por aceptar un soborno.
+sobremesa | postre | | De sobremesa, vou querer pudim. | De postre, voy a querer flan.
+chato | aburrido, pesado | plano = achatado | Esse filme é muito chato, vamos trocar? | Esta película es muy aburrida, ¿cambiamos?
+esperto | vivo, astuto | experto = especialista | Ele é muito esperto, sempre acha um jeito de resolver tudo. | Es muy vivo, siempre encuentra la forma de resolver todo.
+ligar | llamar por teléfono | | Vou te ligar quando chegar no hotel. | Te voy a llamar cuando llegue al hotel.
+puxar / empurrar | tirar / empujar (puertas) | | Essa porta é de puxar, não de empurrar. | Esta puerta es para tirar, no para empujar.
+todavia | sin embargo | todavía = ainda | O hotel é caro; todavia, fica perto da praia. | El hotel es caro; sin embargo, queda cerca de la playa.
+logo | enseguida | luego = depois | Espera um pouco, eu volto logo. | Esperá un poco, vuelvo enseguida.
+acordar | despertarse | acordar = combinar | Amanhã preciso acordar às seis para pegar o voo. | Mañana tengo que despertarme a las seis para tomar el vuelo.
+fechar | cerrar | | A que horas a farmácia vai fechar? | ¿A qué hora va a cerrar la farmacia?
+pegar | agarrar, tomar | pegar o ônibus = tomar el colectivo | Vamos pegar um táxi até o aeroporto. | Tomemos un taxi hasta el aeropuerto.
+brincar | jugar, bromear | brincar = pular | As crianças querem brincar na areia. | Los chicos quieren jugar en la arena.
+mala | valija | mala = ruim | Minha mala não chegou no aeroporto. | Mi valija no llegó al aeropuerto.
+roxo | violeta | rojo = vermelho | Ela comprou um vestido roxo na feira. | Ella se compró un vestido violeta en la feria.
+legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonces vamos juntos.`;
 
   const AJUSTES_BASE = { newPerDay: 15, dirs: 'ambas', modo: 'tarjeta', mazo: '', viaje: '2026-12-22', audio: false, lastBackup: null };
 
@@ -41,13 +42,24 @@ legal | bueno, copado |`;
 
   // ================= Guardado =================
   function tarjetasSemilla() {
-    return SRS.parsearTexto(SEMILLA).tarjetas.map((t, i) => ({ id: 's' + (i + 1), pt: t.pt, es: t.es, note: t.note, deck: MAZO_INICIAL, created: i }));
+    return SRS.parsearTexto(SEMILLA).tarjetas.map((t, i) => ({ id: 's' + (i + 1), pt: t.pt, es: t.es, note: t.note, ex: t.ex, exEs: t.exEs, deck: MAZO_INICIAL, created: i }));
+  }
+
+  // Las tarjetas del mazo inicial que no tienen ejemplo lo reciben de SEMILLA
+  // (para quien instaló la app antes de que existieran los ejemplos).
+  function completarEjemplos(cards) {
+    const semilla = new Map(tarjetasSemilla().map(c => [c.id, c]));
+    for (const c of cards) {
+      const s = semilla.get(c.id);
+      if (s && !c.ex && c.pt.trim().toLowerCase() === s.pt.toLowerCase()) { c.ex = s.ex; c.exEs = s.exEs; }
+    }
+    return cards;
   }
 
   function normalizar(d) {
     return {
       version: 1,
-      cards: Array.isArray(d.cards) ? d.cards.filter(c => c && c.id && c.pt && c.es).map(c => ({ id: String(c.id), pt: String(c.pt), es: String(c.es), note: String(c.note || ''), deck: String(c.deck || MAZO_INICIAL), created: Number(c.created) || 0 })) : [],
+      cards: Array.isArray(d.cards) ? completarEjemplos(d.cards.filter(c => c && c.id && c.pt && c.es).map(c => ({ id: String(c.id), pt: String(c.pt), es: String(c.es), note: String(c.note || ''), ex: String(c.ex || ''), exEs: String(c.exEs || ''), deck: String(c.deck || MAZO_INICIAL), created: Number(c.created) || 0 }))) : [],
       progress: d.progress && typeof d.progress === 'object' ? d.progress : {},
       days: Array.isArray(d.days) ? d.days : [],
       log: d.log && typeof d.log === 'object' ? d.log : {},
@@ -158,12 +170,12 @@ legal | bueno, copado |`;
   }
 
   function hablarConVoz(texto) {
-    if (!hayVoz) return aviso('Esta palabra no tiene audio grabado y este navegador no puede leer en voz alta.');
+    if (!hayVoz) return aviso('Esto no tiene audio grabado y este navegador no puede leer en voz alta.');
     if (!vozPt) buscarVoz();
     if (!vozPt && speechSynthesis.getVoices().length) {
       return aviso(esIOS
         ? 'Falta la voz en portugués: Ajustes › Accesibilidad › Contenido leído › Voces › Portugués (Brasil).'
-        : 'Esta palabra no tiene audio grabado y la compu no tiene voz en portugués.');
+        : 'Esto no tiene audio grabado y la compu no tiene voz en portugués.');
     }
     reproductor.pause();
     const u = new SpeechSynthesisUtterance(texto.replace(/\s*\/\s*/g, ', '));
@@ -329,6 +341,7 @@ legal | bueno, copado |`;
     $('#contador').textContent = `${s.terminadas}/${s.total}`;
     $('#calificar').hidden = true;
     $('#seguir').hidden = true;
+    $('#explicacion').hidden = true;
 
     if (!s.cola.length) return terminar();
 
@@ -465,8 +478,53 @@ legal | bueno, copado |`;
       s.terminadas += 1;
     }
     guardar();
-    mostrarActual();
+    if (nota === 0) mostrarExplicacion(item.card); // no la sabías: antes de seguir, un ejemplo
+    else mostrarActual();
   }
+
+  // ----- Explicación con ejemplo (después de "No la sabía") -----
+  function resaltar(contenedor, frase, palabra) {
+    contenedor.replaceChildren();
+    const partes = palabra.split('/').map(w => w.trim()).filter(Boolean).map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    let re;
+    try {
+      re = new RegExp('(?<![\\p{L}])(' + partes.join('|') + ')(?![\\p{L}])', 'giu');
+    } catch (e) {
+      contenedor.textContent = frase; // navegador viejo: sin resaltado
+      return;
+    }
+    let ultimo = 0;
+    for (const m of frase.matchAll(re)) {
+      contenedor.append(frase.slice(ultimo, m.index), el('mark', null, m[0]));
+      ultimo = m.index + m[0].length;
+    }
+    contenedor.append(frase.slice(ultimo));
+  }
+
+  let explicando = null;
+  function mostrarExplicacion(card) {
+    explicando = card;
+    $('#zona-tarjeta').hidden = true;
+    $('#zona-quiz').hidden = true;
+    $('#calificar').hidden = true;
+    $('#seguir').hidden = true;
+    $('#exp-pt').textContent = card.pt;
+    $('#exp-es').textContent = card.es;
+    $('#exp-nota').textContent = card.note ? '💡 ' + card.note : '';
+    const hayEjemplo = !!card.ex;
+    $('#exp-ejemplo').hidden = !hayEjemplo;
+    $('#exp-sin').hidden = hayEjemplo;
+    if (hayEjemplo) {
+      resaltar($('#exp-ex'), card.ex, card.pt);
+      $('#exp-exes').textContent = card.exEs || '';
+    }
+    $('#explicacion').hidden = false;
+    window.scrollTo(0, 0);
+    if (aj().audio) hablar(hayEjemplo ? card.ex : card.pt);
+  }
+  $('#btn-entendido').addEventListener('click', () => mostrarActual());
+  $('#exp-audio-pt').addEventListener('click', () => explicando && hablar(explicando.pt));
+  $('#exp-audio-ex').addEventListener('click', () => explicando && hablar(explicando.ex));
 
   function terminar() {
     $('#zona-tarjeta').hidden = true;
@@ -487,6 +545,10 @@ legal | bueno, copado |`;
   document.addEventListener('keydown', e => {
     if (!document.body.classList.contains('estudiando') || !sesion || !sesion.cola.length) return;
     if (document.querySelector('dialog[open]')) return;
+    if (!$('#explicacion').hidden) {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); mostrarActual(); }
+      return;
+    }
     if (e.key === ' ' || e.key === 'Enter') {
       if (!$('#zona-tarjeta').hidden) { e.preventDefault(); voltear(); }
       else if (!$('#seguir').hidden) { e.preventDefault(); calificarActual(0); }
@@ -563,6 +625,7 @@ legal | bueno, copado |`;
     if (!c) return;
     editando = id;
     formT.pt.value = c.pt; formT.es.value = c.es; formT.note.value = c.note; formT.deck.value = c.deck;
+    formT.ex.value = c.ex || ''; formT.exEs.value = c.exEs || '';
     $('#dlg-tarjeta-titulo').textContent = 'Editar tarjeta';
     const vistas = dirsActivas().map(d => estado.progress[SRS.clave(c.id, d)]).filter(Boolean).reduce((n, p) => n + p.reps + p.lapses, 0);
     $('#dlg-tarjeta-estado').textContent = `Estado: ${estadoTarjeta(c).texto}${vistas ? ` · la acertaste ${vistas === 1 ? '1 vez' : vistas + ' veces'}` : ''}. Editarla no borra el progreso.`;
@@ -574,7 +637,7 @@ legal | bueno, copado |`;
 
   formT.addEventListener('submit', e => {
     e.preventDefault();
-    const datos = { pt: formT.pt.value.trim(), es: formT.es.value.trim(), note: formT.note.value.trim(), deck: formT.deck.value.trim() || MAZO_INICIAL };
+    const datos = { pt: formT.pt.value.trim(), es: formT.es.value.trim(), note: formT.note.value.trim(), ex: formT.ex.value.trim(), exEs: formT.exEs.value.trim(), deck: formT.deck.value.trim() || MAZO_INICIAL };
     if (!datos.pt || !datos.es) return aviso('Completá portugués y español');
     const repetida = estado.cards.find(c => c.id !== editando && c.deck === datos.deck && sinTildes(c.pt) === sinTildes(datos.pt) && sinTildes(c.es) === sinTildes(datos.es));
     if (repetida) return aviso('Esa tarjeta ya está en el mazo');
@@ -612,22 +675,31 @@ legal | bueno, copado |`;
   function analizarTanda() {
     const { tarjetas, errores } = SRS.parsearTexto(formI.texto.value);
     const deck = formI.deck.value.trim() || MAZO_INICIAL;
-    const existentes = new Set(estado.cards.filter(c => c.deck === deck).map(c => sinTildes(c.pt) + '|' + sinTildes(c.es)));
+    const existentes = new Map(estado.cards.filter(c => c.deck === deck).map(c => [sinTildes(c.pt) + '|' + sinTildes(c.es), c]));
     const nuevas = [];
+    const conEjemplo = []; // ya estaban pero no tenían ejemplo: se lo agrego
+    const vistas = new Set();
     let repetidas = 0;
     for (const t of tarjetas) {
       const k = sinTildes(t.pt) + '|' + sinTildes(t.es);
-      if (existentes.has(k)) { repetidas++; continue; }
-      existentes.add(k);
+      if (vistas.has(k)) { repetidas++; continue; }
+      vistas.add(k);
+      const ya = existentes.get(k);
+      if (ya) {
+        if (t.ex && !ya.ex) conEjemplo.push({ card: ya, t });
+        else repetidas++;
+        continue;
+      }
       nuevas.push(t);
     }
-    return { nuevas, repetidas, errores, deck };
+    return { nuevas, conEjemplo, repetidas, errores, deck };
   }
 
   function vistaPreviaTanda() {
     const r = analizarTanda();
     const partes = [];
     if (r.nuevas.length) partes.push(`Se van a agregar ${r.nuevas.length} ${r.nuevas.length === 1 ? 'tarjeta' : 'tarjetas'}`);
+    if (r.conEjemplo.length) partes.push(`${r.conEjemplo.length} que ya tenías reciben su ejemplo`);
     if (r.repetidas) partes.push(`${r.repetidas} ya estaban`);
     if (r.errores.length) partes.push(`líneas sin "|" o incompletas: ${r.errores.join(', ')}`);
     $('#importar-vista').textContent = partes.join(' · ');
@@ -645,13 +717,17 @@ legal | bueno, copado |`;
   formI.addEventListener('submit', e => {
     e.preventDefault();
     const r = analizarTanda();
-    if (!r.nuevas.length) return aviso(r.repetidas ? 'Esas tarjetas ya estaban' : 'No encontré tarjetas para agregar');
+    if (!r.nuevas.length && !r.conEjemplo.length) return aviso(r.repetidas ? 'Esas tarjetas ya estaban' : 'No encontré tarjetas para agregar');
     const base = Date.now();
-    r.nuevas.forEach((t, i) => estado.cards.push({ id: nuevoId() + i, pt: t.pt, es: t.es, note: t.note, deck: r.deck, created: base + i }));
+    r.nuevas.forEach((t, i) => estado.cards.push({ id: nuevoId() + i, pt: t.pt, es: t.es, note: t.note, ex: t.ex, exEs: t.exEs, deck: r.deck, created: base + i }));
+    r.conEjemplo.forEach(({ card, t }) => { card.ex = t.ex; card.exEs = t.exEs; if (!card.note && t.note) card.note = t.note; });
     guardar();
     dlgI.close();
     pintarLista();
-    aviso(`Agregué ${r.nuevas.length} ${r.nuevas.length === 1 ? 'tarjeta' : 'tarjetas'} a "${r.deck}"`);
+    const partes = [];
+    if (r.nuevas.length) partes.push(`Agregué ${r.nuevas.length} ${r.nuevas.length === 1 ? 'tarjeta' : 'tarjetas'} a "${r.deck}"`);
+    if (r.conEjemplo.length) partes.push(`${r.conEjemplo.length} con ejemplo nuevo`);
+    aviso(partes.join(' · '));
   });
 
   // ================= Ajustes =================

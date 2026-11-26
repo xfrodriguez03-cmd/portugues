@@ -156,8 +156,13 @@ console.log('Importar texto');
 prueba('lee "portugués | español | nota" y nota vacía', () => {
   const r = S.parsearTexto('esquisito | raro | exquisito = delicioso\nsobremesa | postre | \n\n# comentario\nmal formada');
   assert.strictEqual(r.tarjetas.length, 2);
-  assert.deepStrictEqual(r.tarjetas[1], { pt: 'sobremesa', es: 'postre', note: '' });
+  assert.deepStrictEqual(r.tarjetas[1], { pt: 'sobremesa', es: 'postre', note: '', ex: '', exEs: '' });
   assert.deepStrictEqual(r.errores, [5]);
+});
+prueba('lee ejemplo y traducción (columnas 4 y 5)', () => {
+  const r = S.parsearTexto('mala | valija | mala = ruim | Minha mala não chegou. | Mi valija no llegó.\nlogo | enseguida | | Volto logo. | Vuelvo enseguida.');
+  assert.deepStrictEqual(r.tarjetas[0], { pt: 'mala', es: 'valija', note: 'mala = ruim', ex: 'Minha mala não chegou.', exEs: 'Mi valija no llegó.' });
+  assert.strictEqual(r.tarjetas[1].note, ''); assert.strictEqual(r.tarjetas[1].ex, 'Volto logo.');
 });
 prueba('respeta las barras "/" dentro del texto', () => {
   const r = S.parsearTexto('puxar / empurrar | tirar / empujar (puertas) |');

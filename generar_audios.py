@@ -1,8 +1,9 @@
 """Genera la pronunciación en portugués de Brasil de cada tarjeta (archivos MP3).
 
 Usa Kokoro (voz local y gratis, la misma del piloto de Shorts) y ffmpeg.
-Lee las palabras del mazo inicial (SEMILLA en app.js) y, si existe, de audio/extra.txt
-(una palabra o frase en portugués por línea, o líneas "portugués | español | nota").
+Lee las palabras y las oraciones de ejemplo del mazo inicial (SEMILLA en app.js) y,
+si existe, de audio/extra.txt (una palabra o frase en portugués por línea, o líneas
+"portugués | español | nota | ejemplo | traducción").
 
 Uso (desde esta carpeta):
     ..\\piloto-canal\\tools\\venv\\Scripts\\python.exe -X utf8 generar_audios.py
@@ -45,9 +46,13 @@ def palabras():
         lineas += extra.read_text(encoding="utf-8").splitlines()
     vistas = {}
     for linea in lineas:
-        pt = linea.split("|")[0].strip()
-        if pt and not pt.startswith("#"):
-            vistas.setdefault(nombre_archivo(pt), pt)
+        if not linea.strip() or linea.strip().startswith("#"):
+            continue
+        partes = [p.strip() for p in linea.split("|")]
+        # columna 1: la palabra; columna 4: la oración de ejemplo
+        for texto in [partes[0]] + ([partes[3]] if len(partes) > 3 else []):
+            if texto:
+                vistas.setdefault(nombre_archivo(texto), texto)
     return vistas
 
 

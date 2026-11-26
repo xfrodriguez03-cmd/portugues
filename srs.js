@@ -239,7 +239,8 @@
         errores.push(i + 1);
         return;
       }
-      tarjetas.push({ pt: partes[0], es: partes[1], note: partes.slice(2).join(' | ').trim() });
+      // portugués | español | nota | ejemplo | traducción del ejemplo
+      tarjetas.push({ pt: partes[0], es: partes[1], note: partes[2] || '', ex: partes[3] || '', exEs: partes.slice(4).join(' | ').trim() });
     });
     return { tarjetas, errores };
   }
