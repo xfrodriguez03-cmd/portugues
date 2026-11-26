@@ -144,6 +144,42 @@
     return { repasos: mezclar(repasos), nuevas };
   }
 
+  // ---------- Práctica libre (cuando ya terminaste lo del día) ----------
+  // Elige tarjetas que ya viste, primero las que más te cuestan (facilidad baja,
+  // olvidos, falladas hace poco), con un poco de azar para que no sea siempre igual.
+  // Si todavía no viste ninguna, usa tarjetas nuevas en portugués → español.
+  // Una sola dirección por tarjeta, así una no te "sopla" la otra.
+  // opts: { dirs, mazo, cantidad, rng }
+  function armarPractica(cards, progress, opts) {
+    const rng = opts.rng || Math.random;
+    const dirs = opts.dirs && opts.dirs.length ? opts.dirs : DIRS;
+    const lista = cards.filter(c => !opts.mazo || c.deck === opts.mazo);
+    const cantidad = opts.cantidad || 15;
+    let items = [];
+    for (const card of lista) {
+      for (const dir of dirs) {
+        const p = progress[clave(card.id, dir)];
+        if (!p || p.state === 'new') continue;
+        const dificultad = (EASE_MAX - p.ease) + p.lapses * 0.5 + (p.state === 'learning' ? 1 : 0) + rng() * 0.6;
+        items.push({ card, dir, dificultad });
+      }
+    }
+    if (!items.length) {
+      const dir = dirs.includes('pt-es') ? 'pt-es' : dirs[0];
+      items = lista.map(card => ({ card, dir, dificultad: rng() }));
+    }
+    items.sort((a, b) => b.dificultad - a.dificultad);
+    const usadas = new Set();
+    const elegidas = [];
+    for (const it of items) {
+      if (elegidas.length >= cantidad) break;
+      if (usadas.has(it.card.id)) continue;
+      usadas.add(it.card.id);
+      elegidas.push({ card: it.card, dir: it.dir });
+    }
+    return mezclar(elegidas, rng);
+  }
+
   // Una tarjeta está "aprendida" cuando todas sus direcciones activas
   // ya tienen un intervalo de 3 días o más.
   function estaAprendida(card, progress, dirs) {
@@ -223,7 +259,7 @@
     DIRS, APRENDIDA_DESDE,
     hoy, sumarDias, diasEntre,
     progresoNuevo, clave, calificar, textoIntervalo,
-    armarCola, estaAprendida, racha,
+    armarCola, armarPractica, estaAprendida, racha,
     respuesta, opcionesQuiz, parsearTexto, mezclar,
   };
 

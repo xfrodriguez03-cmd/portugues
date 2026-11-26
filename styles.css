@@ -51,6 +51,7 @@ h2 { margin: 0 0 8px; font-size: 22px; }
 .saludo { margin: 0; color: var(--suave); }
 .detalle { color: var(--suave); margin: 0; }
 .chico { font-size: 14px; }
+.centrado { text-align: center; }
 .aviso { margin: 0; padding: 12px 14px; border-radius: 14px; background: rgba(250, 204, 21, .1); color: var(--amarillo); font-size: 14px; }
 .version { text-align: center; color: var(--suave); font-size: 13px; margin: 8px 0 0; }
 code { background: var(--panel-2); padding: 1px 6px; border-radius: 6px; font-size: 13px; }

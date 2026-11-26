@@ -89,6 +89,41 @@ prueba('filtra por mazo', () => {
   assert.strictEqual(c.nuevas.length, 1);
 });
 
+console.log('Práctica libre');
+prueba('practica solo tarjetas ya vistas, hasta 15', () => {
+  const prog = {};
+  cards.slice(0, 20).forEach(c => { prog[S.clave(c.id, 'pt-es')] = S.calificar(S.progresoNuevo(), 2, H); });
+  const p = S.armarPractica(cards, prog, { cantidad: 15 });
+  assert.strictEqual(p.length, 15);
+  assert.ok(p.every(i => prog[S.clave(i.card.id, i.dir)]));
+});
+prueba('primero las que más te cuestan', () => {
+  const prog = {};
+  cards.forEach(c => { prog[S.clave(c.id, 'pt-es')] = S.calificar(S.progresoNuevo(), 2, H); });
+  let dificil = S.calificar(S.progresoNuevo(), 2, H);
+  for (let i = 0; i < 4; i++) dificil = S.calificar(dificil, 0, H);
+  prog['s7:pt-es'] = dificil;
+  for (let i = 0; i < 20; i++) {
+    assert.ok(S.armarPractica(cards, prog, { cantidad: 3 }).some(x => x.card.id === 's7'));
+  }
+});
+prueba('una sola dirección por tarjeta', () => {
+  const prog = {};
+  cards.forEach(c => S.DIRS.forEach(d => { prog[S.clave(c.id, d)] = S.calificar(S.progresoNuevo(), 1, H); }));
+  const p = S.armarPractica(cards, prog, { cantidad: 26 });
+  assert.strictEqual(new Set(p.map(i => i.card.id)).size, p.length);
+});
+prueba('sin nada visto usa tarjetas en portugués → español', () => {
+  const p = S.armarPractica(cards, {}, { cantidad: 15 });
+  assert.strictEqual(p.length, 15); assert.ok(p.every(i => i.dir === 'pt-es'));
+});
+prueba('no modifica el progreso', () => {
+  const prog = { 's1:pt-es': S.calificar(S.progresoNuevo(), 2, H) };
+  const copia = JSON.stringify(prog);
+  S.armarPractica(cards, prog, { cantidad: 15 });
+  assert.strictEqual(JSON.stringify(prog), copia);
+});
+
 console.log('Racha y aprendidas');
 prueba('racha de 3 días', () => assert.strictEqual(S.racha(['2026-11-22', '2026-11-23', H], H), 3));
 prueba('la racha sigue viva si estudiaste ayer', () => assert.strictEqual(S.racha(['2026-11-22', '2026-11-23'], H), 2));

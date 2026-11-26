@@ -239,6 +239,9 @@ legal | bueno, copado |`;
     btn.textContent = total ? 'Empezar' : 'Volvé mañana';
     const quedanNuevas = colaDeHoy(9999).nuevas.length > 0;
     $('#btn-mas-nuevas').hidden = !(total === 0 && quedanNuevas);
+    $('#btn-practicar').hidden = !(total === 0 && hayParaPracticar());
+    $('#practica-info').hidden = $('#btn-practicar').hidden;
+    btn.hidden = !$('#btn-practicar').hidden; // con todo hecho, el botón grande pasa a ser "Seguir practicando"
 
     // Racha y aprendidas
     $('#racha').textContent = SRS.racha(estado.days, hoy());
@@ -266,7 +269,11 @@ legal | bueno, copado |`;
     registroHoy().extra += 5; guardar(); pintarInicio();
     aviso('Listo, 5 nuevas más para hoy');
   });
-  $('#btn-empezar').addEventListener('click', empezar);
+  $('#btn-empezar').addEventListener('click', () => empezar(false));
+  $('#btn-practicar').addEventListener('click', () => empezar(true));
+  $('#btn-practicar-mas').addEventListener('click', () => empezar(true));
+
+  const hayParaPracticar = () => estado.cards.some(c => !aj().mazo || c.deck === aj().mazo);
 
   // ================= Estudio =================
   let sesion = null;
@@ -283,11 +290,18 @@ legal | bueno, copado |`;
     return out;
   }
 
-  function empezar() {
-    const c = colaDeHoy();
-    const cola = intercalar(c.repasos, c.nuevas);
+  // practica = true: práctica libre. Repasa tarjetas que ya viste sin cambiar
+  // las fechas del repaso espaciado (así no se desarma el calendario).
+  function empezar(practica) {
+    let cola;
+    if (practica) {
+      cola = SRS.armarPractica(estado.cards, estado.progress, { dirs: dirsActivas(), mazo: aj().mazo || null, cantidad: 15 });
+    } else {
+      const c = colaDeHoy();
+      cola = intercalar(c.repasos, c.nuevas);
+    }
     if (!cola.length) return;
-    sesion = { cola, total: cola.length, terminadas: 0, resultados: [0, 0, 0], modo: aj().modo };
+    sesion = { cola, total: cola.length, terminadas: 0, resultados: [0, 0, 0], modo: aj().modo, practica: !!practica };
     $('#fin').hidden = true;
     mostrarVista('estudio');
     mostrarActual();
@@ -321,13 +335,13 @@ legal | bueno, copado |`;
     const item = s.cola[0];
     const p = estado.progress[SRS.clave(item.card.id, item.dir)] || SRS.progresoNuevo();
     const t = textos(item);
-    const etiqueta = p.state === 'new' ? 'Nueva' : p.state === 'learning' ? 'Otra vez' : 'Repaso';
+    const etiqueta = s.practica ? 'Práctica' : p.state === 'new' ? 'Nueva' : p.state === 'learning' ? 'Otra vez' : 'Repaso';
     $('#direccion').textContent = item.dir === 'pt-es' ? '🇧🇷 Portugués → Español 🇦🇷' : '🇦🇷 Español → Portugués 🇧🇷';
 
-    // Lo que dice cada botón: cuándo vuelve
+    // Lo que dice cada botón: cuándo vuelve (en práctica las fechas no cambian)
     $$('#calificar small').forEach(sm => {
       const nota = Number(sm.dataset.int);
-      sm.textContent = nota === 0 ? 'en un rato' : SRS.textoIntervalo(SRS.calificar(p, nota, hoy()).interval);
+      sm.textContent = nota === 0 ? 'en un rato' : s.practica ? 'listo' : SRS.textoIntervalo(SRS.calificar(p, nota, hoy()).interval);
     });
 
     const modoQuiz = s.modo === 'quiz' && estado.cards.length >= 2;
@@ -434,12 +448,14 @@ legal | bueno, copado |`;
     const s = sesion;
     if (!s || !s.cola.length) return;
     const item = s.cola.shift();
-    const k = SRS.clave(item.card.id, item.dir);
-    const p = estado.progress[k] || SRS.progresoNuevo();
     const f = hoy();
-    const log = registroHoy();
-    if (p.state === 'new') log.nuevas += 1; else log.repasos += 1;
-    estado.progress[k] = SRS.calificar(p, nota, f);
+    if (!s.practica) {
+      const k = SRS.clave(item.card.id, item.dir);
+      const p = estado.progress[k] || SRS.progresoNuevo();
+      const log = registroHoy();
+      if (p.state === 'new') log.nuevas += 1; else log.repasos += 1;
+      estado.progress[k] = SRS.calificar(p, nota, f);
+    }
     if (!estado.days.includes(f)) estado.days.push(f);
     s.resultados[nota] += 1;
     if (nota === 0) {
@@ -459,7 +475,12 @@ legal | bueno, copado |`;
     $('#fin').hidden = false;
     const [mal, medio, bien] = sesion.resultados;
     const racha = SRS.racha(estado.days, hoy());
+    const c = colaDeHoy();
+    const quedanHoy = c.repasos.length + c.nuevas.length;
+    $('#fin-titulo').textContent = sesion.practica ? '¡Buena práctica!' : quedanHoy ? '¡Tanda terminada!' : '¡Terminaste por hoy!';
     $('#fin-resumen').textContent = `✅ ${bien} la sabía · 🤔 ${medio} más o menos · ❌ ${mal} no la sabía. Racha: ${racha} ${racha === 1 ? 'día' : 'días'} 🔥`;
+    $('#btn-practicar-mas').hidden = quedanHoy > 0 || !hayParaPracticar();
+    $('#btn-practicar-mas').textContent = sesion.practica ? '🔁 Otra tanda de práctica' : '🔁 Seguir practicando';
   }
 
   // Teclado (para probar en la compu): espacio da vuelta, 1-2-3 califica
