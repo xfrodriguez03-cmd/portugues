@@ -31,28 +31,44 @@ VELOCIDAD = 0.9
 UMBRAL = 0.012
 
 
+# Las tildes quedan en el nombre como un número, porque cambian la palabra:
+# avô (abuelo) = avo3.mp3, avó (abuela) = avo1.mp3
+MARCAS = {"́": "1", "̀": "2", "̂": "3", "̃": "4", "̧": "5"}
+
+
 def nombre_archivo(texto):
-    """Igual que nombreAudio() en app.js: sin tildes, minúsculas, guiones."""
-    sin_tildes = "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn")
-    return re.sub(r"[^a-z0-9]+", "-", sin_tildes.lower()).strip("-")
+    """Igual que nombreAudio() en app.js: minúsculas, tildes como número, guiones."""
+    salida = []
+    for ch in unicodedata.normalize("NFD", texto.lower()):
+        if ch in MARCAS:
+            salida.append(MARCAS[ch])
+        elif ch.isascii() and ch.isalnum():
+            salida.append(ch)
+        else:
+            salida.append("-")
+    return re.sub(r"-+", "-", "".join(salida)).strip("-")
 
 
 def palabras():
-    app = (AQUI / "app.js").read_text(encoding="utf-8")
-    semilla = re.search(r"const SEMILLA = `(.*?)`;", app, re.S).group(1)
-    lineas = semilla.splitlines()
+    """Palabra y ejemplo de cada tarjeta de catalogo.js, más audio/extra.txt."""
+    catalogo = (AQUI / "catalogo.js").read_text(encoding="utf-8")
+    texto = re.search(r"self\.CATALOGO = `(.*?)`;", catalogo, re.S).group(1)
+    pares = []
+    for linea in texto.splitlines():
+        partes = [p.strip() for p in linea.split("|")]
+        if len(partes) >= 5 and not linea.strip().startswith("#"):
+            pares.append((partes[1], partes[4]))  # id | pt | es | nota | ejemplo | traducción
     extra = AQUI / "audio" / "extra.txt"
     if extra.exists():
-        lineas += extra.read_text(encoding="utf-8").splitlines()
+        for linea in extra.read_text(encoding="utf-8").splitlines():
+            if linea.strip() and not linea.strip().startswith("#"):
+                partes = [p.strip() for p in linea.split("|")]
+                pares.append((partes[0], partes[3] if len(partes) > 3 else ""))
     vistas = {}
-    for linea in lineas:
-        if not linea.strip() or linea.strip().startswith("#"):
-            continue
-        partes = [p.strip() for p in linea.split("|")]
-        # columna 1: la palabra; columna 4: la oración de ejemplo
-        for texto in [partes[0]] + ([partes[3]] if len(partes) > 3 else []):
-            if texto:
-                vistas.setdefault(nombre_archivo(texto), texto)
+    for palabra, ejemplo in pares:
+        for t in (palabra, ejemplo):
+            if t:
+                vistas.setdefault(nombre_archivo(t), t)
     return vistas
 
 
@@ -75,13 +91,22 @@ def main():
             destino = carpeta / f"{nombre}.mp3"
             if destino.exists():
                 continue
-            # "puxar / empurrar" se lee "puxar, empurrar"
-            m, sr = kokoro.create(pt.replace(" / ", ", "), voice=VOZ, speed=VELOCIDAD, lang="pt-br")
+            # "mão / mal" se lee "mão, mal"; "Onde fica...?" se lee sin los puntos suspensivos
+            leer = pt.replace(" / ", ", ").replace("...", "")
+            m, sr = kokoro.create(leer, voice=VOZ, speed=VELOCIDAD, lang="pt-br")
             wav = Path(tmp) / f"{nombre}.wav"
             sf.write(wav, recortar(np.asarray(m, dtype=np.float32), sr), sr)
             subprocess.run([str(FFMPEG), "-loglevel", "error", "-y", "-i", str(wav), "-ac", "1", "-b:a", "48k", str(destino)], check=True)
             print("listo:", destino.name, "←", pt)
+    # Audios que ya no usa ninguna tarjeta: afuera
+    for viejo in carpeta.glob("*.mp3"):
+        if viejo.stem not in lista:
+            viejo.unlink()
+            print("borrado (ya no se usa):", viejo.name)
     nombres = sorted(n for n in lista if (carpeta / f"{n}.mp3").exists())
+    faltan = [lista[n] for n in lista if n not in nombres]
+    if faltan:
+        print("SIN AUDIO:", faltan)
     (carpeta / "indice.js").write_text(
         "// Generado por generar_audios.py: palabras que tienen audio grabado.\n"
         f"self.AUDIOS = {json.dumps(nombres, ensure_ascii=False)};\n",

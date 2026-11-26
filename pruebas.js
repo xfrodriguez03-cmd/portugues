@@ -181,6 +181,68 @@ prueba('nube vacía (primera vez) no rompe nada', () => {
   assert.strictEqual(r.cards.length, 26);
 });
 
+console.log('Catálogo de mazos');
+global.self = global.self || {};
+require('./catalogo.js');
+const CAT = S.parsearCatalogo(self.CATALOGO);
+const VER = self.CATALOGO_VERSION, QUIT = self.CATALOGO_QUITADAS;
+const aplicar = d => S.aplicarCatalogo(JSON.parse(JSON.stringify(d)), CAT, VER, QUIT);
+prueba('todas las tarjetas tienen id único, mazo y ejemplo con traducción', () => {
+  assert.ok(CAT.length >= 100, 'tarjetas: ' + CAT.length);
+  assert.strictEqual(new Set(CAT.map(c => c.id)).size, CAT.length);
+  const faltan = CAT.filter(c => !c.deck || !c.ex || !c.exEs).map(c => c.id);
+  assert.deepStrictEqual(faltan, []);
+});
+prueba('no se repite ninguna palabra en portugués', () => {
+  const pts = CAT.map(c => c.pt.toLowerCase());
+  assert.strictEqual(new Set(pts).size, pts.length);
+});
+prueba('los ids viejos del mazo inicial siguen siendo los mismos', () => {
+  const porId = Object.fromEntries(CAT.map(c => [c.id, c.pt]));
+  assert.strictEqual(porId.s1, 'esquisito'); assert.strictEqual(porId.s24, 'mala'); assert.strictEqual(porId.s26, 'legal');
+  assert.ok(!porId.s17 && !porId.s25);
+});
+prueba('instalación nueva: todas las del catálogo', () => {
+  const e = aplicar({ cards: [], progress: {} });
+  assert.strictEqual(e.cards.length, CAT.length);
+});
+prueba('datos viejos: conserva el progreso y agrega lo nuevo', () => {
+  const viejos = { cards: [{ id: 's1', pt: 'esquisito', es: 'raro', note: '', deck: 'Falsos amigos', created: 0, mod: 0 }], progress: { 's1:pt-es': { state: 'review', due: '2026-11-30', interval: 3, ts: 5 } } };
+  const e = aplicar(viejos);
+  assert.strictEqual(e.cards.length, CAT.length);
+  assert.ok(e.cards.find(c => c.id === 's1').ex);
+  assert.strictEqual(e.progress['s1:pt-es'].due, '2026-11-30');
+});
+prueba('tus tarjetas repetidas se unen y su progreso pasa a la del catálogo', () => {
+  const datos = { cards: [{ id: 'cx1', pt: 'avô', es: 'abuelo', deck: 'Pronunciación', created: 9e12, mod: 9e11 }, { id: 'cx2', pt: 'avó', es: 'abuela', deck: 'Pronunciación', created: 9e12, mod: 9e11 }],
+    progress: { 'cx1:pt-es': { state: 'review', due: '2026-12-01', ts: 7 }, 'cx2:pt-es': { state: 'review', due: '2026-12-05', ts: 8 } } };
+  const e = aplicar(datos);
+  const avo3 = CAT.find(c => c.pt === 'avô').id, avo1 = CAT.find(c => c.pt === 'avó').id;
+  assert.strictEqual(e.progress[avo3 + ':pt-es'].due, '2026-12-01');
+  assert.strictEqual(e.progress[avo1 + ':pt-es'].due, '2026-12-05');
+  assert.ok(!e.cards.some(c => c.id === 'cx1' || c.id === 'cx2'));
+});
+prueba('las que salen del catálogo se borran y no vuelven', () => {
+  const e = aplicar({ cards: [{ id: 's25', pt: 'roxo', es: 'violeta', deck: 'Falsos amigos', mod: 0 }], progress: {} });
+  assert.ok(!e.cards.some(c => c.id === 's25')); assert.ok(e.borradas.s25);
+});
+prueba('una tarjeta que borraste vos no vuelve', () => {
+  const e = aplicar({ cards: [], progress: {}, borradas: { s1: 123 } });
+  assert.ok(!e.cards.some(c => c.id === 's1'));
+});
+prueba('si editaste una tarjeta después, tu texto gana', () => {
+  const e = aplicar({ cards: [{ id: 's1', pt: 'esquisito', es: 'MI TEXTO', deck: 'Otro', mod: VER + 1000 }], progress: {} });
+  assert.strictEqual(e.cards.find(c => c.id === 's1').es, 'MI TEXTO');
+});
+prueba('aplicarlo dos veces, o sincronizar dos aparatos, da lo mismo', () => {
+  const a = aplicar({ cards: [{ id: 'cz', pt: 'saudade', es: 'nostalgia', deck: 'Mis tarjetas', created: 9e12, mod: 9e12 }], progress: {} });
+  assert.strictEqual(JSON.stringify(aplicar(a)), JSON.stringify(a));
+  const b = aplicar({ cards: [], progress: {} });
+  const ab = aplicar(S.combinarDatos(a, b)), ba = aplicar(S.combinarDatos(b, a));
+  assert.strictEqual(JSON.stringify(ab), JSON.stringify(ba));
+  assert.ok(ab.cards.some(c => c.pt === 'saudade'));
+});
+
 console.log('Racha y aprendidas');
 prueba('racha de 3 días', () => assert.strictEqual(S.racha(['2026-11-22', '2026-11-23', H], H), 3));
 prueba('la racha sigue viva si estudiaste ayer', () => assert.strictEqual(S.racha(['2026-11-22', '2026-11-23'], H), 2));

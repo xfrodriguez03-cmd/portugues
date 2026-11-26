@@ -9,13 +9,14 @@
  */
 importScripts('audio/indice.js'); // trae self.AUDIOS: la lista de audios grabados
 
-const VERSION = 'v6';
+const VERSION = 'v7';
 const CACHE = 'tarjetas-portugues-' + VERSION;
 const ARCHIVOS = [
   './',
   './index.html',
   './styles.css',
   './srs.js',
+  './catalogo.js',
   './app.js',
   './audio/indice.js',
   './manifest.webmanifest',

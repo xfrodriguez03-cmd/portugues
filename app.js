@@ -6,34 +6,8 @@
   'use strict';
 
   const CLAVE = 'tarjetas-portugues-v1';
-  const MAZO_INICIAL = 'Falsos amigos';
-  // Formato: portugués | español | nota | ejemplo en portugués | traducción del ejemplo
-  const SEMILLA = `esquisito | raro | exquisito = delicioso | Que cheiro esquisito! Acho que o leite estragou. | ¡Qué olor raro! Creo que la leche se echó a perder.
-embaraçado | avergonzado | embarazada = grávida | Fiquei embaraçado quando errei o nome dela. | Me dio vergüenza cuando me equivoqué con su nombre.
-polvo | pulpo | polvo = pó | O polvo grelhado desse restaurante é uma delícia. | El pulpo a la parrilla de este restaurante es una delicia.
-pelado | desnudo | pelado = careca | Ele saiu do banho e andou pelado pela casa. | Salió de la ducha y anduvo desnudo por la casa.
-largo | ancho | largo = comprido | O corredor é largo, cabem duas pessoas lado a lado. | El pasillo es ancho, entran dos personas una al lado de la otra.
-apelido | apodo | apellido = sobrenome | O apelido dele é Juninho, mas o nome é João. | Su apodo es Juninho, pero se llama João.
-oficina | taller mecánico | oficina = escritório | Levei o carro na oficina porque o freio estava fazendo barulho. | Llevé el auto al taller porque el freno hacía ruido.
-cena | escena | cena = jantar | Essa cena do filme me fez chorar. | Esa escena de la película me hizo llorar.
-rato | ratón | un rato = um tempinho | Vi um rato correndo na cozinha! | ¡Vi un ratón corriendo en la cocina!
-copo | vaso para tomar | vaso = maceta / inodoro | Me vê um copo de água, por favor? | ¿Me das un vaso de agua, por favor?
-presunto | jamón | presunto = suposto | Quero um sanduíche de presunto e queijo. | Quiero un sándwich de jamón y queso.
-propina | soborno | propina = gorjeta | O policial foi preso por aceitar propina. | El policía fue detenido por aceptar un soborno.
-sobremesa | postre | | De sobremesa, vou querer pudim. | De postre, voy a querer flan.
-chato | aburrido, pesado | plano = achatado | Esse filme é muito chato, vamos trocar? | Esta película es muy aburrida, ¿cambiamos?
-esperto | vivo, astuto | experto = especialista | Ele é muito esperto, sempre acha um jeito de resolver tudo. | Es muy vivo, siempre encuentra la forma de resolver todo.
-ligar | llamar por teléfono | | Vou te ligar quando chegar no hotel. | Te voy a llamar cuando llegue al hotel.
-puxar / empurrar | tirar / empujar (puertas) | | Essa porta é de puxar, não de empurrar. | Esta puerta es para tirar, no para empujar.
-todavia | sin embargo | todavía = ainda | O hotel é caro; todavia, fica perto da praia. | El hotel es caro; sin embargo, queda cerca de la playa.
-logo | enseguida | luego = depois | Espera um pouco, eu volto logo. | Esperá un poco, vuelvo enseguida.
-acordar | despertarse | acordar = combinar | Amanhã preciso acordar às seis para pegar o voo. | Mañana tengo que despertarme a las seis para tomar el vuelo.
-fechar | cerrar | | A que horas a farmácia vai fechar? | ¿A qué hora va a cerrar la farmacia?
-pegar | agarrar, tomar | pegar o ônibus = tomar el colectivo | Vamos pegar um táxi até o aeroporto. | Tomemos un taxi hasta el aeropuerto.
-brincar | jugar, bromear | brincar = pular | As crianças querem brincar na areia. | Los chicos quieren jugar en la arena.
-mala | valija | mala = ruim | Minha mala não chegou no aeroporto. | Mi valija no llegó al aeropuerto.
-roxo | violeta | rojo = vermelho | Ela comprou um vestido roxo na feira. | Ella se compró un vestido violeta en la feria.
-legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonces vamos juntos.`;
+  const MAZO_PROPIO = 'Mis tarjetas'; // mazo por defecto para las tarjetas que agregás vos
+  // Las tarjetas que trae la app están en catalogo.js (mazos, ejemplos y orden).
 
   const AJUSTES_BASE = { newPerDay: 15, dirs: 'ambas', modo: 'tarjeta', mazo: '', viaje: '2026-12-22', audio: false, lastBackup: null };
 
@@ -41,32 +15,29 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
   const $$ = s => Array.from(document.querySelectorAll(s));
 
   // ================= Guardado =================
+  // El catálogo (catalogo.js): las tarjetas que trae la app, por mazo, con ejemplo y audio.
+  const CATALOGO = SRS.parsearCatalogo(self.CATALOGO || '');
+  const VERSION_CATALOGO = self.CATALOGO_VERSION || 0;
+  const QUITADAS = self.CATALOGO_QUITADAS || [];
+
   function tarjetasSemilla() {
-    return SRS.parsearTexto(SEMILLA).tarjetas.map((t, i) => ({ id: 's' + (i + 1), pt: t.pt, es: t.es, note: t.note, ex: t.ex, exEs: t.exEs, deck: MAZO_INICIAL, created: i }));
+    return CATALOGO.map(c => Object.assign({}, c, { mod: VERSION_CATALOGO }));
   }
 
-  // Las tarjetas del mazo inicial que no tienen ejemplo lo reciben de SEMILLA
-  // (para quien instaló la app antes de que existieran los ejemplos).
-  function completarEjemplos(cards) {
-    const semilla = new Map(tarjetasSemilla().map(c => [c.id, c]));
-    for (const c of cards) {
-      const s = semilla.get(c.id);
-      if (s && !c.ex && c.pt.trim().toLowerCase() === s.pt.toLowerCase()) { c.ex = s.ex; c.exEs = s.exEs; }
-    }
-    return cards;
-  }
+  // Pone los datos al día con el catálogo (agrega, ordena, une repetidas) sin perder progreso.
+  const ponerAlDia = e => SRS.aplicarCatalogo(e, CATALOGO, VERSION_CATALOGO, QUITADAS);
 
   function normalizar(d) {
-    return {
+    return ponerAlDia({
       version: 1,
-      cards: Array.isArray(d.cards) ? completarEjemplos(d.cards.filter(c => c && c.id && c.pt && c.es).map(c => ({ id: String(c.id), pt: String(c.pt), es: String(c.es), note: String(c.note || ''), ex: String(c.ex || ''), exEs: String(c.exEs || ''), deck: String(c.deck || MAZO_INICIAL), created: Number(c.created) || 0, mod: Number(c.mod) || 0 }))) : [],
+      cards: Array.isArray(d.cards) ? d.cards.filter(c => c && c.id && c.pt && c.es).map(c => ({ id: String(c.id), pt: String(c.pt), es: String(c.es), note: String(c.note || ''), ex: String(c.ex || ''), exEs: String(c.exEs || ''), deck: String(c.deck || MAZO_PROPIO), created: Number(c.created) || 0, mod: Number(c.mod) || 0 })) : [],
       progress: d.progress && typeof d.progress === 'object' ? d.progress : {},
       days: Array.isArray(d.days) ? d.days : [],
       log: d.log && typeof d.log === 'object' ? d.log : {},
       borradas: d.borradas && typeof d.borradas === 'object' ? d.borradas : {}, // id → cuándo se borró (para la sincronización)
       reinicio: Number(d.reinicio) || 0,
       settings: Object.assign({}, AJUSTES_BASE, d.settings || {}),
-    };
+    });
   }
 
   function cargar() {
@@ -97,7 +68,9 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
   const hoy = () => SRS.hoy();
   const aj = () => estado.settings;
   const dirsActivas = () => (aj().dirs === 'ambas' ? ['pt-es', 'es-pt'] : [aj().dirs]);
-  const mazos = () => Array.from(new Set(estado.cards.map(c => c.deck))).sort((a, b) => (a === MAZO_INICIAL ? -1 : b === MAZO_INICIAL ? 1 : a.localeCompare(b, 'es')));
+  // Mazos en el orden del catálogo; los tuyos, después y por orden alfabético
+  const ordenMazo = m => { const i = CATALOGO.findIndex(c => c.deck === m); return i < 0 ? Infinity : i; };
+  const mazos = () => Array.from(new Set(estado.cards.map(c => c.deck))).sort((a, b) => ordenMazo(a) - ordenMazo(b) || a.localeCompare(b, 'es'));
   const sinTildes = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const nuevoId = () => 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
@@ -158,7 +131,9 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* no pasa nada */ }
 
   // Igual que nombre_archivo() en generar_audios.py
-  const nombreAudio = t => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  // Las tildes quedan como número porque cambian la palabra: avô = avo3, avó = avo1
+  const MARCAS = { '\u0301': '1', '\u0300': '2', '\u0302': '3', '\u0303': '4', '\u0327': '5' };
+  const nombreAudio = t => Array.from(String(t).toLowerCase().normalize('NFD'), ch => MARCAS[ch] || (/[a-z0-9]/.test(ch) ? ch : '-')).join('').replace(/-+/g, '-').replace(/^-|-$/g, '');
 
   function hablar(texto) {
     if (!texto) return;
@@ -616,7 +591,7 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
   function abrirNueva() {
     editando = null;
     formT.reset();
-    formT.deck.value = aj().mazo || MAZO_INICIAL;
+    formT.deck.value = aj().mazo || MAZO_PROPIO;
     $('#dlg-tarjeta-titulo').textContent = 'Nueva tarjeta';
     $('#dlg-tarjeta-estado').textContent = '';
     $('#btn-borrar').hidden = true;
@@ -640,7 +615,7 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
 
   formT.addEventListener('submit', e => {
     e.preventDefault();
-    const datos = { pt: formT.pt.value.trim(), es: formT.es.value.trim(), note: formT.note.value.trim(), ex: formT.ex.value.trim(), exEs: formT.exEs.value.trim(), deck: formT.deck.value.trim() || MAZO_INICIAL };
+    const datos = { pt: formT.pt.value.trim(), es: formT.es.value.trim(), note: formT.note.value.trim(), ex: formT.ex.value.trim(), exEs: formT.exEs.value.trim(), deck: formT.deck.value.trim() || MAZO_PROPIO };
     if (!datos.pt || !datos.es) return aviso('Completá portugués y español');
     const repetida = estado.cards.find(c => c.id !== editando && c.deck === datos.deck && sinTildes(c.pt) === sinTildes(datos.pt) && sinTildes(c.es) === sinTildes(datos.es));
     if (repetida) return aviso('Esa tarjeta ya está en el mazo');
@@ -680,7 +655,7 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
 
   function analizarTanda() {
     const { tarjetas, errores } = SRS.parsearTexto(formI.texto.value);
-    const deck = formI.deck.value.trim() || MAZO_INICIAL;
+    const deck = formI.deck.value.trim() || MAZO_PROPIO;
     const existentes = new Map(estado.cards.filter(c => c.deck === deck).map(c => [sinTildes(c.pt) + '|' + sinTildes(c.es), c]));
     const nuevas = [];
     const conEjemplo = []; // ya estaban pero no tenían ejemplo: se lo agrego
@@ -713,7 +688,7 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
 
   $('#btn-importar-texto').addEventListener('click', () => {
     formI.reset();
-    formI.deck.value = aj().mazo || MAZO_INICIAL;
+    formI.deck.value = aj().mazo || MAZO_PROPIO;
     $('#importar-vista').textContent = '';
     dlgI.showModal();
   });
@@ -817,7 +792,7 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
   $('#btn-restaurar').addEventListener('click', () => {
     const ids = new Set(estado.cards.map(c => c.id));
     const faltan = tarjetasSemilla().filter(c => !ids.has(c.id));
-    if (!faltan.length) return aviso('Ya tenés todas las tarjetas del mazo inicial');
+    if (!faltan.length) return aviso('Ya tenés todas las tarjetas de la app');
     const ahora = Date.now();
     faltan.forEach(c => { c.mod = ahora; delete estado.borradas[c.id]; });
     estado.cards.push(...faltan);
@@ -872,11 +847,12 @@ legal | bueno, copado | | Que legal! Então vamos juntos. | ¡Qué bueno! Entonc
         const combinado = SRS.combinarDatos(local, remoto);
         const cambioLocal = JSON.stringify(combinado) !== JSON.stringify(SRS.combinarDatos(local, null));
         Object.assign(estado, combinado);
-        completarEjemplos(estado.cards);
+        ponerAlDia(estado); // por si la nube trae datos de una versión anterior de la app
         aj().sync.ultima = Date.now();
         guardar();
-        const nubeIgual = remoto && JSON.stringify(combinado) === JSON.stringify(SRS.combinarDatos(remoto, null));
-        if (!nubeIgual) await pedirNube('PUT', codigo, JSON.stringify(Object.assign({ app: 'tarjetas-portugues', actualizado: new Date().toISOString() }, combinado)));
+        const final = SRS.combinarDatos(datosSync(estado), null);
+        const nubeIgual = remoto && JSON.stringify(final) === JSON.stringify(SRS.combinarDatos(remoto, null));
+        if (!nubeIgual) await pedirNube('PUT', codigo, JSON.stringify(Object.assign({ app: 'tarjetas-portugues', actualizado: new Date().toISOString() }, final)));
         estadoSync = '';
         if (cambioLocal) {
           const dif = estado.cards.length - antes;

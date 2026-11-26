@@ -324,6 +324,88 @@
     return JSON.stringify(p) >= JSON.stringify(q) ? p : q;
   }
 
+  // ---------- Catálogo de tarjetas (catalogo.js) ----------
+  // Líneas "id | pt | es | nota | ejemplo | traducción"; "## Mazo" cambia de mazo.
+  function parsearCatalogo(texto) {
+    const cards = [];
+    let deck = '';
+    for (const linea of String(texto).split(/\r?\n/)) {
+      const l = linea.trim();
+      if (!l) continue;
+      if (l.startsWith('## ')) { deck = l.slice(3).trim(); continue; }
+      if (l.startsWith('#')) continue;
+      const p = l.split('|').map(s => s.trim());
+      if (p.length < 3 || !p[0] || !p[1] || !p[2]) continue;
+      cards.push({ id: p[0], pt: p[1], es: p[2], note: p[3] || '', ex: p[4] || '', exEs: p[5] || '', deck, created: cards.length });
+    }
+    return cards;
+  }
+
+  // Pone los datos de un aparato al día con el catálogo, sin perder progreso:
+  //  - agrega las tarjetas nuevas (salvo las que borraste vos),
+  //  - actualiza texto, ejemplo, mazo y orden de las que nunca editaste,
+  //    (si editaste una antes de esta versión, respeta tu texto y solo la ordena),
+  //  - saca las que el catálogo da de baja (si no las editaste después),
+  //  - une tus tarjetas propias que repiten una del catálogo (misma palabra en
+  //    portugués): el progreso pasa a la del catálogo.
+  // Usa una marca fija (version) como fecha de edición: así da lo mismo en qué
+  // aparato o en qué orden se aplique, y una edición tuya posterior siempre gana.
+  function aplicarCatalogo(e, catalogo, version, quitadas) {
+    // Respeta las tildes: en portugués "avô" (abuelo) y "avó" (abuela) son palabras distintas
+    const norm = s => String(s).normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    e.borradas = e.borradas || {};
+    e.progress = e.progress || {};
+    const idsCat = new Set(catalogo.map(c => c.id));
+    const catPorPt = new Map();
+    for (const c of catalogo) if (!catPorPt.has(norm(c.pt))) catPorPt.set(norm(c.pt), c);
+    const sacar = (c, cuando) => {
+      e.cards = e.cards.filter(x => x !== c);
+      e.borradas[c.id] = Math.max(e.borradas[c.id] || 0, cuando);
+    };
+
+    // 1) Las que salen del catálogo
+    for (const id of quitadas || []) {
+      const c = e.cards.find(x => x.id === id);
+      if (c && (c.mod || 0) <= version) {
+        sacar(c, version);
+        DIRS.forEach(d => delete e.progress[clave(id, d)]);
+      }
+    }
+
+    // 2) Tarjetas propias que repiten una del catálogo: se unen
+    for (const c of e.cards.slice()) {
+      if (idsCat.has(c.id)) continue;
+      const k = catPorPt.get(norm(c.pt));
+      if (!k || e.borradas[k.id]) continue;
+      for (const d of DIRS) {
+        const pu = e.progress[clave(c.id, d)];
+        if (!pu) continue;
+        const pc = e.progress[clave(k.id, d)];
+        if (!pc || progresoMasNuevo(pu, pc) === pu) e.progress[clave(k.id, d)] = pu;
+        delete e.progress[clave(c.id, d)];
+      }
+      sacar(c, Math.max(version, c.mod || 0));
+    }
+
+    // 3) Agregar y poner al día las del catálogo
+    const porId = new Map(e.cards.map(c => [c.id, c]));
+    for (const k of catalogo) {
+      const c = porId.get(k.id);
+      if (!c) {
+        if (!e.borradas[k.id]) e.cards.push(Object.assign({}, k, { mod: version }));
+        continue;
+      }
+      if ((c.mod || 0) >= version) continue; // ya está al día, o la editaste después
+      if (!c.mod) Object.assign(c, { pt: k.pt, es: k.es, note: k.note, ex: k.ex, exEs: k.exEs });
+      else Object.assign(c, { ex: c.ex || k.ex, exEs: c.exEs || k.exEs });
+      Object.assign(c, { deck: k.deck, created: k.created, mod: version });
+    }
+
+    // Orden: el del catálogo; tus tarjetas propias, al final
+    e.cards.sort((a, b) => (a.created || 0) - (b.created || 0) || (a.id < b.id ? -1 : 1));
+    return e;
+  }
+
   // ---------- Utilidades ----------
   function mezclar(arr, rng) {
     rng = rng || Math.random;
@@ -340,7 +422,8 @@
     hoy, sumarDias, diasEntre,
     progresoNuevo, clave, calificar, textoIntervalo,
     armarCola, armarPractica, estaAprendida, racha,
-    respuesta, opcionesQuiz, parsearTexto, mezclar, combinarDatos,
+    respuesta, opcionesQuiz, parsearTexto, mezclar, combinarDatos, progresoMasNuevo,
+    parsearCatalogo, aplicarCatalogo,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = SRS;
